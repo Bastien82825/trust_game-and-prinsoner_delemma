@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心理學研究：人機互動與決策實驗</title>
+    <style>
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 750px; margin: 20px auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2, h3, h4 { color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; }
+        .step { display: none; }
+        .step.active { display: block; }
+        button { background-color: #3498db; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; margin-top: 15px; }
+        button:hover { background-color: #2980b9; }
+        .progress-bar-container { width: 100%; background-color: #e0e0e0; border-radius: 8px; margin: 20px 0; display: none; }
+        .progress-bar { width: 0%; height: 20px; background-color: #2ecc71; border-radius: 8px; text-align: center; color: white; line-height: 20px; font-size: 12px; transition: width 0.1s linear; }
+        textarea { width: 100%; height: 100px; margin-top: 10px; border-radius: 6px; border: 1px solid #ccc; padding: 10px; }
+        .role-badge { display: inline-block; background-color: #e67e22; color: #fff; padding: 6px 12px; border-radius: 4px; font-weight: bold; margin-bottom: 10px; font-size: 15px; }
+
+        /* 圖像化矩陣樣式 */
+        .payoff-table { width: 100%; border-collapse: collapse; margin: 15px 0; text-align: center; background: #fff; }
+        .payoff-table th, .payoff-table td { border: 2px solid #bdc3c7; padding: 12px; font-size: 14px; }
+        .payoff-table th { background-color: #34495e; color: #fff; }
+        .payoff-highlight { background-color: #e8f8f5; font-weight: bold; }
+
+        /* 試玩區樣式 */
+        .demo-sandbox { background: #fff8e7; border: 2px solid #f39c12; border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .demo-result { background: #fff; border: 1px solid #f39c12; padding: 10px; border-radius: 6px; margin-top: 10px; font-weight: bold; color: #d35400; }
+
+        /* 基本資料欄位樣式 */
+        .demo-group { margin-bottom: 15px; }
+        .demo-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .demo-group input[type="text"],
+        .demo-group input[type="number"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .demo-group-inline { display: flex; gap: 15px; align-items: center; }
+
+        /* 卡片式量表樣式 */
+        .likert-card { background: #ffffff; border: 1px solid #dadce0; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .likert-title { font-size: 16px; font-weight: bold; color: #202124; margin-bottom: 15px; }
+        .likert-scale { display: grid; grid-template-columns: 100px repeat(6, 1fr) 100px; align-items: center; text-align: center; gap: 5px; }
+        .likert-scale-flex { display: flex; flex-direction: column; gap: 12px; }
+        .likert-scale-flex label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; color: #3c4043; }
+        .likert-label { font-size: 13px; color: #5f6368; }
+        .likert-label.left { text-align: right; padding-right: 10px; }
+        .likert-label.right { text-align: left; padding-left: 10px; }
+        .likert-num { font-size: 14px; color: #3c4043; margin-bottom: 8px; }
+        .likert-radio-col { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .likert-radio-col input[type="radio"], .likert-scale-flex input[type="radio"] { width: 18px; height: 18px; cursor: pointer; margin: 0; }
+
+        /* 資訊與得分統計卡片 */
+        .payoff-box { background-color: #eef7fe; border-left: 5px solid #3498db; padding: 15px 20px; margin: 15px 0; border-radius: 4px; }
+        .info-card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin: 15px 0; }
+        .info-item { margin-bottom: 12px; font-size: 16px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 步驟 0：知情同意書 -->
+    <div id="step-consent" class="step active">
+        <h2>知情同意書</h2>
+        <p>歡迎參加本心理學研究實驗。本研究旨在探討人類與AI或其他人際互動對決策之影響。</p>
+        <p>參與報酬：完成實驗可獲得 <strong>30 點 Line Points</strong>，並依據遊戲決策結果最高可額外獲得 <strong>100 點 Line Points</strong>（兩次賽局得分換算上限）。</p>
+        <button onclick="startConsent()">我同意並開始實驗</button>
+    </div>
+
+    <!-- 步驟 1：前測 -->
+    <div id="step-pre-anthro" class="step">
+        <h3>前測問卷：經驗與感知印象</h3>
+        
+        <h4>一、 AI 經驗評估</h4>
+        <div id="pre-ai-questions"></div>
+
+        <h4>二、 感知印象評估</h4>
+        <p>請依據直覺評估您感覺對手的表現更接近：</p>
+        <div id="pre-anthro-questions"></div>
+        <button onclick="submitPreAnthro()">下一步</button>
+    </div>
+
+    <!-- 步驟 2：中性話題互動 (僅互動組) -->
+    <div id="step-chat" class="step">
+        <h3>話題討論任務</h3>
+        <p>請針對以下議題表達您的看法，並輸入至少 100 字的說明：</p>
+        <p><strong id="chat-topic"></strong></p>
+        <textarea id="chat-response" placeholder="請在此輸入您的看法..."></textarea>
+        <button onclick="submitChat()">完成討論並繼續</button>
+    </div>
+
+    <!-- 賽局 1：理解測驗與規則說明 -->
+    <div id="step-quiz-game1" class="step">
+        <h3 id="g1-quiz-title">賽局 1 規則說明與理解測試</h3>
+        <div id="g1-quiz-content"></div>
+        <button onclick="checkQuiz(1)">確認並進入預測階段</button>
+    </div>
+
+    <!-- 賽局 1 - 階段 1：對手選擇預測與信心水準 -->
+    <div id="step-game1-predict" class="step">
+        <h3 id="g1-pred-title">賽局 1：對手選擇預測</h3>
+        <p>請在未知對手資訊前，先依據直覺進行預估：</p>
+        <div id="g1-pred-cards-container"></div>
+        <button onclick="submitPredict(1)">完成預測，檢視對手資訊</button>
+    </div>
+
+    <!-- 賽局 1 - 階段 2：角色與對手資訊 -->
+    <div id="step-game1-info" class="step">
+        <h3 id="g1-info-title">賽局 1：角色與對手資訊</h3>
+        <div class="info-card">
+            <div class="info-item">
+                <strong>您的角色：</strong> <span id="g1-role-display"></span>
+            </div>
+            <div class="info-item">
+                <strong>【您的對手】：</strong> <span id="g1-opponent-name" style="color:#2980b9; font-weight:bold;"></span>
+            </div>
+            <div class="info-item">
+                <strong>【對手提示】：</strong> <span id="g1-opponent-hint" style="color:#d35400;"></span>
+            </div>
+        </div>
+        <button onclick="startGameInfoNext(1)">進行決策</button>
+    </div>
+
+    <!-- 賽局 1 - 階段 3：最終決策 -->
+    <div id="step-game1-decide" class="step">
+        <h3 id="g1-decide-title">賽局 1：您的決策</h3>
+        <div id="g1-instructions"></div>
+        <div id="g1-decide-cards-container"></div>
+        <button onclick="playGame(1)">確認送出決策</button>
+    </div>
+
+    <!-- 等待動畫頁面 -->
+    <div id="step-waiting" class="step">
+        <h3 id="waiting-title">對手選擇中...</h3>
+        <p id="waiting-desc">請稍候，系統正記錄決策數據。</p>
+        <div class="progress-bar-container" id="pbar-box">
+            <div class="progress-bar" id="pbar">0%</div>
+        </div>
+    </div>
+
+    <!-- 賽局 2：理解測驗與規則說明 -->
+    <div id="step-quiz-game2" class="step">
+        <h3 id="g2-quiz-title">賽局 2 規則說明與理解測試</h3>
+        <div id="g2-quiz-content"></div>
+        <button onclick="checkQuiz(2)">確認並進入預測階段</button>
+    </div>
+
+    <!-- 賽局 2 - 階段 1：對手選擇預測與信心水準 -->
+    <div id="step-game2-predict" class="step">
+        <h3 id="g2-pred-title">賽局 2：對手選擇預測</h3>
+        <p>請在未知對手資訊前，先依據直覺進行預估：</p>
+        <div id="g2-pred-cards-container"></div>
+        <button onclick="submitPredict(2)">完成預測，檢視對手資訊</button>
+    </div>
+
+    <!-- 賽局 2 - 階段 2：角色與對手資訊 -->
+    <div id="step-game2-info" class="step">
+        <h3 id="g2-info-title">賽局 2：角色與對手資訊</h3>
+        <div class="info-card">
+            <div class="info-item">
+                <strong>您的角色：</strong> <span id="g2-role-display"></span>
+            </div>
+            <div class="info-item">
+                <strong>【您的對手】：</strong> <span id="g2-opponent-name" style="color:#2980b9; font-weight:bold;"></span>
+            </div>
+            <div class="info-item">
+                <strong>【對手提示】：</strong> <span id="g2-opponent-hint" style="color:#d35400;"></span>
+            </div>
+        </div>
+        <button onclick="startGameInfoNext(2)">進行決策</button>
+    </div>
+
+    <!-- 賽局 2 - 階段 3：最終決策 -->
+    <div id="step-game2-decide" class="step">
+        <h3 id="g2-decide-title">賽局 2：您的決策</h3>
+        <div id="g2-instructions"></div>
+        <div id="g2-decide-cards-container"></div>
+        <button onclick="playGame(2)">確認送出決策</button>
+    </div>
+
+    <!-- 賽局結束得分統計頁面 -->
+    <div id="step-payoff-result" class="step">
+        <h3>遊戲決策結果與得分統計</h3>
+        <p>兩次賽局已全部結束，以下為您的最終決策得分與 Line Points 統計：</p>
+        
+        <div class="payoff-box">
+            <p>基本參與報酬：<strong>30</strong> 點</p>
+            <p>賽局 1 獲得分數：<strong id="result-g1-score">0</strong> 分 (可換算 <span id="result-g1-pts">0</span> 點 Line Points)</p>
+            <p>賽局 2 獲得分數：<strong id="result-g2-score">0</strong> 分 (可換算 <span id="result-g2-pts">0</span> 點 Line Points)</p>
+            <hr style="border:0; border-top:1px dashed #ccc;">
+            <p style="font-size:18px; color:#2c3e50;">您最終總共獲得：<strong id="result-total-score" style="color:#e74c3c; font-size:22px;">0</strong> 點 Line Points</p>
+            <span style="font-size:12px; color:#7f8c8d;">註：遊戲得分換算方式為 獲得分數 × 1/2</span>
+        </div>
+
+        <button onclick="showStep('step-post-eval')">繼續填寫後測問卷</button>
+    </div>
+
+    <!-- 步驟 6：後測情緒量表 -->
+    <div id="step-post-eval" class="step">
+        <h3>後測評估</h3>
+        <h4>1. 對於最終遊戲結果，您的感受如何？</h4>
+        <div id="emo-questions"></div>
+
+        <button onclick="submitPostEval()">下一步</button>
+    </div>
+
+    <!-- 步驟 7：基本人口學資料 -->
+    <div id="step-demographics" class="step">
+        <h3>基本資料</h3>
+        <div id="demographics-cards-container"></div>
+        <button onclick="submitAllData()">完成並提交</button>
+    </div>
+
+    <!-- 步驟 8：結束頁面 -->
+    <div id="step-end" class="step">
+        <h2>實驗完成！</h2>
+        <p>感謝您的參與。您的數據已成功儲存。</p>
+    </div>
+</div>
+
+<script>
+    const GAS_URL = "https://script.google.com/macros/s/您的部署ID/exec";
+
+    const LIT_PARAMS = {
+        TRUST_P1_COOPERATE: 141 / 198,
+        TRUST_P2_COOPERATE: 102 / 144,
+        PD_COOPERATE: 0.45
+    };
+
+    let expData = {
+        subjectId: "SUB_" + Math.floor(Math.random()*899999 + 100000),
+        group: "",
+        passedQuiz1: true, quiz1Tries: 0,
+        passedQuiz2: true, quiz2Tries: 0,
+        preAi1: 0, preAi2: 0,
+        preAnthroAvg: 0,
+        gameOrder: [],
+        trustRole: "",
+        game1Type: "", game1Choice: "", game1Pred: "", game1Conf: 0, game1Payoff: 0, game1OppChoice: "",
+        game2Type: "", game2Choice: "", game2Pred: "", game2Conf: 0, game2Payoff: 0, game2OppChoice: "",
+        totalPoints: 0,
+        emoHappy: 0, emoRelieved: 0, emoVictorious: 0, emoAngry: 0, emoGuilty: 0, emoDisappointed: 0
+    };
+
+    const anthroItems = [
+        { left: "虛假的", right: "自然的", key: "a1" },
+        { left: "像機器", right: "像人類", key: "a2" },
+        { left: "無意識的", right: "有意識的", key: "a3" },
+        { left: "人工的", right: "栩栩如生的", key: "a4" }
+    ];
+
+    const emoItems = [
+        { title: "感到開心 (Happy)", left: "非常無感", right: "非常強烈", key: "Happy" },
+        { title: "感到鬆一口氣 (Relieved)", left: "非常無感", right: "非常強烈", key: "Relieved" },
+        { title: "感到獲勝感 (Victorious)", left: "非常無感", right: "非常強烈", key: "Victorious" },
+        { title: "感到生氣 (Angry)", left: "非常無感", right: "非常強烈", key: "Angry" },
+        { title: "感到內疚 (Guilty)", left: "非常無感", right: "非常強烈", key: "Guilty" },
+        { title: "感到失望 (Disappointed)", left: "非常無感", right: "非常強烈", key: "Disappointed" }
+    ];
+
+    const topics = [
+        "咖哩應該要先拌還是不拌？請說明原因。",
+        "早起比較健康還是夜貓族也沒有不好？請說明原因。",
+        "約會遲到 5 分鐘算是正常還是不能接受？請說明原因。"
+    ];
+
+    window.onload = function() {
+        let rand = Math.random();
+        if (rand < 0.333) expData.group = "Chat_AI";
+        else if (rand < 0.666) expData.group = "NoChat_AI";
+        else expData.group = "NoChat_Human";
+
+        expData.gameOrder = Math.random() < 0.5 ? ['Trust', 'PD'] : ['PD', 'Trust'];
+        expData.trustRole = Math.random() < 0.5 ? "Player1" : "Player2";
+
+        buildPreAIScale();
+        buildAnthroScale("pre-anthro-questions", "pre_a");
+        buildEmoScale();
+        buildDemographicsCards();
+    };
+
+    function showStep(stepId) {
+        document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+        document.getElementById(stepId).classList.add('active');
+    }
+
+    function buildPreAIScale() {
+        let container = document.getElementById("pre-ai-questions");
+        container.innerHTML = `
+            <div class="likert-card">
+                <div class="likert-title">1. 我對於使用 AI 聊天機器人的經驗非常豐富：</div>
+                <div class="likert-scale">
+                    <div class="likert-label left">非常不同意</div>
+                    ${[1,2,3,4,5,6].map(i => `
+                        <div class="likert-radio-col">
+                            <span class="likert-num">${i}</span>
+                            <input type="radio" name="pre_ai1" value="${i}">
+                        </div>
+                    `).join('')}
+                    <div class="likert-label right">非常同意</div>
+                </div>
+            </div>
+            <div class="likert-card">
+                <div class="likert-title">2. 我對於使用 AI 聊天機器人感到很熟悉：</div>
+                <div class="likert-scale">
+                    <div class="likert-label left">非常不同意</div>
+                    ${[1,2,3,4,5,6].map(i => `
+                        <div class="likert-radio-col">
+                            <span class="likert-num">${i}</span>
+                            <input type="radio" name="pre_ai2" value="${i}">
+                        </div>
+                    `).join('')}
+                    <div class="likert-label right">非常同意</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function buildAnthroScale(containerId, prefix) {
+        let container = document.getElementById(containerId);
+        container.innerHTML = "";
+        anthroItems.forEach((item, idx) => {
+            let html = `
+            <div class="likert-card">
+                <div class="likert-scale">
+                    <div class="likert-label left">${item.left}</div>`;
+            
+            for (let i = 1; i <= 6; i++) {
+                html += `
+                    <div class="likert-radio-col">
+                        <span class="likert-num">${i}</span>
+                        <input type="radio" name="${prefix}_${idx}" value="${i}">
+                    </div>`;
+            }
+
+            html += `
+                    <div class="likert-label right">${item.right}</div>
+                </div>
+            </div>`;
+            container.innerHTML += html;
+        });
+    }
+
+    function buildEmoScale() {
+        let container = document.getElementById("emo-questions");
+        container.innerHTML = "";
+        emoItems.forEach((item) => {
+            let html = `
+            <div class="likert-card">
+                <div class="likert-title">${item.title}</div>
+                <div class="likert-scale">
+                    <div class="likert-label left">${item.left}</div>`;
+            
+            for (let i = 1; i <= 6; i++) {
+                html += `
+                    <div class="likert-radio-col">
+                        <span class="likert-num">${i}</span>
+                        <input type="radio" name="emo_${item.key}" value="${i}">
+                    </div>`;
+            }
+
+            html += `
+                    <div class="likert-label right">${item.right}</div>
+                </div>
+            </div>`;
+            container.innerHTML += html;
+        });
+    }
+
+    function buildDemographicsCards() {
+        let container = document.getElementById("demographics-cards-container");
+        container.innerHTML = `
+            <div class="demo-group">
+                <label>1. 年齡：</label>
+                <input type="number" id="demo-age" placeholder="請輸入年齡 (例如: 25)">
+            </div>
+            <div class="demo-group">
+                <label>2. 性別：</label>
+                <div class="demo-group-inline">
+                    <label><input type="radio" name="demo_gender" value="Male"> 男</label>
+                    <label><input type="radio" name="demo_gender" value="Female"> 女</label>
+                    <label><input type="radio" name="demo_gender" value="Other"> 其他</label>
+                </div>
+            </div>
+            <div class="demo-group">
+                <label>3. 宗教信仰：</label>
+                <input type="text" id="demo-religion" placeholder="例如：無、佛教、基督教等">
+            </div>
+            <div class="demo-group">
+                <label>4. 種族/族群：</label>
+                <input type="text" id="demo-ethnicity" value="漢族">
+            </div>
+            <br>
+            <div class="likert-card">
+                <div class="likert-title">5. 賽局遊戲經驗：</div>
+                <div class="likert-scale">
+                    <div class="likert-label left">無經驗</div>
+                    ${[1,2,3,4,5,6].map(i => `
+                        <div class="likert-radio-col">
+                            <span class="likert-num">${i}</span>
+                            <input type="radio" name="demo_game_exp" value="${i}">
+                        </div>
+                    `).join('')}
+                    <div class="likert-label right">非常豐富</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function startConsent() {
+        showStep("step-pre-anthro");
+    }
+
+    function submitPreAnthro() {
+        let ai1 = document.querySelector('input[name="pre_ai1"]:checked');
+        let ai2 = document.querySelector('input[name="pre_ai2"]:checked');
+        if (!ai1 || !ai2) { alert("請完整填寫 AI 經驗題組！"); return; }
+        expData.preAi1 = ai1.value;
+        expData.preAi2 = ai2.value;
+
+        let sum = 0, count = 0;
+        for (let i = 0; i < anthroItems.length; i++) {
+            let val = document.querySelector(`input[name="pre_a_${i}"]:checked`);
+            if (!val) { alert("請完整填寫感知印象量表！"); return; }
+            sum += parseInt(val.value);
+            count++;
+        }
+        expData.preAnthroAvg = (sum / count).toFixed(2);
+
+        if (expData.group === "Chat_AI") {
+            let randomTopic = topics[Math.floor(Math.random() * topics.length)];
+            document.getElementById("chat-topic").innerText = randomTopic;
+            showStep("step-chat");
+        } else {
+            initGameStage(1);
+        }
+    }
+
+    function submitChat() {
+        let text = document.getElementById("chat-response").value;
+        if (text.length < 100) {
+            alert("請至少輸入 100 字的回應！ (目前 " + text.length + " 字)");
+            return;
+        }
+        initGameStage(1);
+    }
+
+    // 動態載入賽局規則說明與獨立測驗
+    function initGameStage(gameNum) {
+        let gameType = expData.gameOrder[gameNum - 1];
+        if (gameNum === 1) expData.game1Type = gameType;
+        else expData.game2Type = gameType;
+
+        let titleEl = document.getElementById(`g${gameNum}-quiz-title`);
+        let contentEl = document.getElementById(`g${gameNum}-quiz-content`);
+
+        if (gameType === "Trust") {
+            titleEl.innerText = `賽局 ${gameNum}：一次性信任遊戲 - 規則說明與試玩`;
+            contentEl.innerHTML = `
+                <p><strong>【遊戲規則】</strong></p>
+                <p>本遊戲包含兩位玩家：<strong>玩家 1 ( Trustor )</strong> 與 <strong>玩家 2 ( Trustee )</strong>。</p>
+                <p>1. <strong>玩家 1 首先選擇：</strong>
+                    <ul>
+                        <li>若選擇【直接結束】，遊戲立即結束，雙方各獲得 <strong>30 分</strong>。</li>
+                        <li>若選擇【冒險合作】，決定權將轉交給玩家 2。</li>
+                    </ul>
+                </p>
+                <p>2. <strong>若玩家 1 選擇【冒險合作】，玩家 2 進行選擇：</strong>
+                    <ul>
+                        <li>若選擇【合作回報】，雙方各獲得 <strong>70 分</strong>。</li>
+                        <li>若選擇【背叛獨吞】，玩家 1 獲得 <strong>0 分</strong>，玩家 2 獲得 <strong>100 分</strong>。</li>
+                    </ul>
+                </p>
+
+                <div class="demo-sandbox">
+                    <h4>請試著點選組合看看會得多少分：</h4>
+                    <p>假設您扮演的是 <strong>玩家 1</strong>：
+                        <button style="margin:2px; padding:6px 12px; font-size:13px;" onclick="runSandbox('P1', 'End')">選【直接結束】</button>
+                        <button style="margin:2px; padding:6px 12px; font-size:13px;" onclick="runSandbox('P1', 'Cooperate_Cooperate')">選【冒險合作】且玩家 2【合作】</button>
+                        <button style="margin:2px; padding:6px 12px; font-size:13px;" onclick="runSandbox('P1', 'Cooperate_Defect')">選【冒險合作】且玩家 2【背叛】</button>
+                    </p>
+                    <div id="sandbox-result" class="demo-result">點擊上方按鈕觀看模擬分數試玩結果。</div>
+                </div>
+
+                <h4>理解檢測問題：</h4>
+                <p><strong>問：若玩家 1 選擇【冒險合作】，而玩家 2 選擇【背叛獨吞】，請問 玩家 1 與 玩家 2 各得多少分？</strong></p>
+                <div class="likert-scale-flex">
+                    <label><input type="radio" name="g${gameNum}_quiz_ans" value="A"> 玩家 1 得 70 分，玩家 2 得 70 分</label>
+                    <label><input type="radio" name="g${gameNum}_quiz_ans" value="B"> 玩家 1 得 0 分，玩家 2 得 100 分</label>
+                    <label><input type="radio" name="g${gameNum}_quiz_ans" value="C"> 玩家 1 得 30 分，玩家 2 得 30 分</label>
+                </div>
+                <br>
+            `;
+        } else {
+            titleEl.innerText = `賽局 ${gameNum}：囚徒困境 - 規則說明與理解測試`;
+            contentEl.innerHTML = `
+                <p><strong>【遊戲規則】</strong></p>
+                <p>您與對手同時進行決策（可選擇【合作】或【背叛】），收益視雙方的共同選擇而定：</p>
+                
+                <table class="payoff-table">
+                    <tr>
+                        <th colspan="2" rowspan="2">得分矩陣 (您, 對手)</th>
+                        <th colspan="2">對手的選擇</th>
+                    </tr>
+                    <tr>
+                        <th>合作</th>
+                        <th>背叛</th>
+                    </tr>
+                    <tr>
+                        <th rowspan="2" style="vertical-align:middle;">您的選擇</th>
+                        <th>合作</th>
+                        <td class="payoff-highlight"> ( 70 , 70 )<br><small>雙方皆合作</small></td>
+                        <td> ( 0 , 100 )<br><small>您被背叛</small></td>
+                    </tr>
+                    <tr>
+                        <th>背叛</th>
+                        <td> ( 100 , 0 )<br><small>您成功背叛</small></td>
+                        <td> ( 30 , 30 )<br><small>雙方皆背叛</small></td>
+                    </tr>
+                </table>
+
+                <h4>理解檢測問題：</h4>
+                <p><strong>問：若【您選擇背叛】且【對手也選擇背叛】，請問您能獲得多少分？</strong></p>
+                <div class="likert-scale-flex">
+                    <label><input type="radio" name="g${gameNum}_quiz_ans" value="30"> 30 分</label>
+                    <label><input type="radio" name="g${gameNum}_quiz_ans" value="70"> 70 分</label>
+                    <label><input type="radio" name="g${gameNum}_quiz_ans" value="100"> 100 分</label>
+                </div>
+                <br>
+            `;
+        }
+
+        showStep(`step-quiz-game${gameNum}`);
+    }
+
+    function runSandbox(role, scenario) {
+        let resEl = document.getElementById("sandbox-result");
+        if (scenario === "End") {
+            resEl.innerHTML = "【試玩結果】玩家 1 選擇【直接結束】➔ 玩家 1 得 <strong>30 分</strong>，玩家 2 得 <strong>30 分</strong>。";
+        } else if (scenario === "Cooperate_Cooperate") {
+            resEl.innerHTML = "【試玩結果】玩家 1 選擇【冒險合作】且玩家 2【合作回報】➔ 玩家 1 得 <strong>70 分</strong>，玩家 2 得 <strong>70 分</strong>。";
+        } else if (scenario === "Cooperate_Defect") {
+            resEl.innerHTML = "【試玩結果】玩家 1 選擇【冒險合作】但玩家 2【背叛獨吞】➔ 玩家 1 得 <strong>0 分</strong>，玩家 2 得 <strong>100 分</strong>。";
+        }
+    }
+
+    function checkQuiz(gameNum) {
+        let ans = document.querySelector(`input[name="g${gameNum}_quiz_ans"]:checked`);
+        if (!ans) { alert("請回答理解測試題目！"); return; }
+
+        let gameType = (gameNum === 1) ? expData.game1Type : expData.game2Type;
+        let isCorrect = false;
+
+        if (gameType === "Trust" && ans.value === "B") isCorrect = true;
+        if (gameType === "PD" && ans.value === "30") isCorrect = true;
+
+        if (gameNum === 1) expData.quiz1Tries++;
+        else expData.quiz2Tries++;
+
+        if (isCorrect) {
+            setupGame(gameNum);
+        } else {
+            let tries = (gameNum === 1) ? expData.quiz1Tries : expData.quiz2Tries;
+            if (tries >= 2) {
+                if (gameNum === 1) expData.passedQuiz1 = false;
+                else expData.passedQuiz2 = false;
+                alert("理解測驗未通過，您將繼續體驗遊戲，但數據將作紀錄標記。");
+                setupGame(gameNum);
+            } else {
+                alert("答案不正確，請重新對照圖表並選擇正確答案！");
+            }
+        }
+    }
+
+    function setupGame(gameNum) {
+        let gameType = (gameNum === 1) ? expData.game1Type : expData.game2Type;
+
+        // 1. 初始化步驟一：對手選擇預測與信心水準
+        let predTitle = document.getElementById(`g${gameNum}-pred-title`);
+        let predContainer = document.getElementById(`g${gameNum}-pred-cards-container`);
+        predTitle.innerText = `賽局 ${gameNum}：` + (gameType === "Trust" ? "信任遊戲" : "囚徒困境") + " - 對手預測";
+
+        let predHTML = "";
+        if (gameType === "Trust") {
+            if (expData.trustRole === "Player1") {
+                predHTML = `
+                    <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對方會選擇合作</label>
+                    <label><input type="radio" name="g${gameNum}_pred" value="Defect"> 預測對方會選擇背叛</label>
+                `;
+            } else {
+                predHTML = `
+                    <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對方 (玩家1) 會選擇合作</label>
+                    <label><input type="radio" name="g${gameNum}_pred" value="End"> 預測對方 (玩家1) 會選擇結束遊戲</label>
+                `;
+            }
+        } else {
+            predHTML = `
+                <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對方會選擇合作</label>
+                <label><input type="radio" name="g${gameNum}_pred" value="Defect"> 預測對方會選擇背叛</label>
+            `;
+        }
+
+        predContainer.innerHTML = `
+            <div class="likert-card">
+                <div class="likert-title">1. 您預測對手的選擇會是什麼？</div>
+                <div class="likert-scale-flex">${predHTML}</div>
+            </div>
+            <div class="likert-card">
+                <div class="likert-title">2. 您對此預測的信心水準？</div>
+                <div class="likert-scale">
+                    <div class="likert-label left">完全無信心</div>
+                    ${[1,2,3,4,5,6].map(i => `
+                        <div class="likert-radio-col">
+                            <span class="likert-num">${i}</span>
+                            <input type="radio" name="g${gameNum}_conf" value="${i}">
+                        </div>
+                    `).join('')}
+                    <div class="likert-label right">非常有信心</div>
+                </div>
+            </div>
+        `;
+
+        // 2. 初始化步驟二：角色與對手資訊
+        let infoTitle = document.getElementById(`g${gameNum}-info-title`);
+        let roleDisplay = document.getElementById(`g${gameNum}-role-display`);
+        let oppName = document.getElementById(`g${gameNum}-opponent-name`);
+        let oppHint = document.getElementById(`g${gameNum}-opponent-hint`);
+
+        infoTitle.innerText = `賽局 ${gameNum}：` + (gameType === "Trust" ? "信任遊戲" : "囚徒困境") + " - 角色與對手資訊";
+
+        let roleText = "";
+        if (gameType === "Trust") {
+            roleText = expData.trustRole === "Player1" ? "玩家 1 (Trustor)" : "玩家 2 (Trustee)";
+        } else {
+            roleText = "雙方同時決策玩家";
+        }
+        roleDisplay.innerHTML = `<span class="role-badge">${roleText}</span>`;
+
+        if (expData.group.includes("AI")) {
+            oppName.innerText = "AI 聊天機器人";
+            oppHint.innerText = "AI 聊天機器人被訓練後能在接下來的遊戲中做出與人類類似的決定。";
+        } else {
+            oppName.innerText = "真實人類玩家";
+            oppHint.innerText = "您的對手為另一位真實配對之人類玩家。";
+        }
+
+        // 3. 初始化步驟三：最終決策
+        let decideTitle = document.getElementById(`g${gameNum}-decide-title`);
+        let instEl = document.getElementById(`g${gameNum}-instructions`);
+        let decideContainer = document.getElementById(`g${gameNum}-decide-cards-container`);
+
+        decideTitle.innerText = `賽局 ${gameNum}：` + (gameType === "Trust" ? "信任遊戲" : "囚徒困境") + " - 您的最終決策";
+
+        let choiceHTML = "";
+        if (gameType === "Trust") {
+            if (expData.trustRole === "Player1") {
+                instEl.innerHTML = `<p>信任遊戲規則：若您選擇合作且對方合作，各得70分；若您合作而對方背叛，您得0分，對方得100分；若您選擇直接結束遊戲，雙方各得30分。</p>`;
+                choiceHTML = `
+                    <label><input type="radio" name="g${gameNum}_choice" value="Cooperate"> 選擇冒險合作</label>
+                    <label><input type="radio" name="g${gameNum}_choice" value="End"> 選擇開啟/立即結束 (各得30分)</label>
+                `;
+            } else {
+                instEl.innerHTML = `<p>信任遊戲規則：對手（玩家 1）決定是否開啟合作。若對方選擇合作，決定權交給您：合作回報各得70分，背叛則您得100分，對方得0分。</p>`;
+                choiceHTML = `
+                    <label><input type="radio" name="g${gameNum}_choice" value="Cooperate"> 選擇合作回報 (各得70分)</label>
+                    <label><input type="radio" name="g${gameNum}_choice" value="Defect"> 選擇背叛獨吞 (您得100分)</label>
+                `;
+            }
+        } else {
+            instEl.innerHTML = `<p>囚徒困境規則：雙方同時決策。雙方合作各得70分；雙方背叛各得30分；一方背叛一方合作，背叛者得100分，合作者得0分。</p>`;
+            choiceHTML = `
+                <label><input type="radio" name="g${gameNum}_choice" value="Cooperate"> 選擇合作</label>
+                <label><input type="radio" name="g${gameNum}_choice" value="Defect"> 選擇背叛</label>
+            `;
+        }
+
+        decideContainer.innerHTML = `
+            <div class="likert-card">
+                <div class="likert-title">您的最終決策：</div>
+                <div class="likert-scale-flex">${choiceHTML}</div>
+            </div>
+        `;
+
+        showStep(`step-game${gameNum}-predict`);
+    }
+
+    function submitPredict(gameNum) {
+        let pred = document.querySelector(`input[name="g${gameNum}_pred"]:checked`);
+        let conf = document.querySelector(`input[name="g${gameNum}_conf"]:checked`);
+
+        if (!pred || !conf) {
+            alert("請完整填寫預測與信心水準！");
+            return;
+        }
+
+        if (gameNum === 1) {
+            expData.game1Pred = pred.value;
+            expData.game1Conf = conf.value;
+        } else {
+            expData.game2Pred = pred.value;
+            expData.game2Conf = conf.value;
+        }
+
+        showStep(`step-game${gameNum}-info`);
+    }
+
+    function startGameInfoNext(gameNum) {
+        let gameType = gameNum === 1 ? expData.game1Type : expData.game2Type;
+
+        if (gameType === "Trust" && expData.trustRole === "Player2") {
+            document.getElementById("waiting-title").innerText = "對手（玩家 1）思考中...";
+            document.getElementById("waiting-desc").innerText = "請稍候，對手正在進行決策選擇。";
+            showStep("step-waiting");
+            document.getElementById("pbar-box").style.display = "block";
+
+            let pbar = document.getElementById("pbar");
+            let width = 0;
+            pbar.style.width = '0%';
+            pbar.innerText = '0%';
+
+            let waitTime = Math.floor(Math.random() * 2000) + 1500;
+            let intervalTime = waitTime / 100;
+
+            let timer = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(timer);
+                    let p1PassedTrust = (Math.random() < LIT_PARAMS.TRUST_P1_COOPERATE);
+
+                    if (!p1PassedTrust) {
+                        if (gameNum === 1) {
+                            expData.game1OppChoice = "End";
+                            expData.game1Choice = "None";
+                            expData.game1Payoff = 30;
+                        } else {
+                            expData.game2OppChoice = "End";
+                            expData.game2Choice = "None";
+                            expData.game2Payoff = 30;
+                        }
+                        expData.totalPoints += 30;
+
+                        alert("【決策通知】對手（玩家 1）選擇了「背叛/直接結束遊戲」。\n本局遊戲直接結束，您與對手各獲得 30 分。");
+
+                        if (gameNum === 1) {
+                            initGameStage(2);
+                        } else {
+                            showPayoffResult();
+                        }
+                    } else {
+                        if (gameNum === 1) expData.game1OppChoice = "Cooperate";
+                        else expData.game2OppChoice = "Cooperate";
+
+                        showStep(`step-game${gameNum}-decide`);
+                    }
+                } else {
+                    width++;
+                    pbar.style.width = width + '%';
+                    pbar.innerText = width + '%';
+                }
+            }, intervalTime);
+        } else {
+            showStep(`step-game${gameNum}-decide`);
+        }
+    }
+
+    function playGame(gameNum) {
+        let choice = document.querySelector(`input[name="g${gameNum}_choice"]:checked`);
+        if (!choice) { alert("請選擇您的最終決策！"); return; }
+
+        if (gameNum === 1) {
+            expData.game1Choice = choice.value;
+        } else {
+            expData.game2Choice = choice.value;
+        }
+
+        document.getElementById("waiting-title").innerText = "對手選擇中...";
+        document.getElementById("waiting-desc").innerText = "請稍候，系統正記錄決策數據。";
+        showStep("step-waiting");
+        document.getElementById("pbar-box").style.display = "block";
+
+        let pbar = document.getElementById("pbar");
+        let width = 0;
+        pbar.style.width = '0%';
+        pbar.innerText = '0%';
+
+        let waitTime = Math.floor(Math.random() * 2000) + 1000;
+        let intervalTime = waitTime / 100;
+
+        let timer = setInterval(() => {
+            if (width >= 100) {
+                clearInterval(timer);
+                calculatePayoff(gameNum);
+                if (gameNum === 1) {
+                    initGameStage(2);
+                } else {
+                    showPayoffResult();
+                }
+            } else {
+                width++;
+                pbar.style.width = width + '%';
+                pbar.innerText = width + '%';
+            }
+        }, intervalTime);
+    }
+
+    function calculatePayoff(gameNum) {
+        let gType = gameNum === 1 ? expData.game1Type : expData.game2Type;
+        let choice = gameNum === 1 ? expData.game1Choice : expData.game2Choice;
+
+        let oppChoice = "Defect";
+        let payoff = 0;
+
+        if (gType === "Trust") {
+            if (expData.trustRole === "Player1") {
+                let aiCooperateProb = LIT_PARAMS.TRUST_P2_COOPERATE;
+                if (choice === "End") {
+                    payoff = 30;
+                    oppChoice = "None";
+                } else {
+                    oppChoice = (Math.random() < aiCooperateProb) ? "Cooperate" : "Defect";
+                    payoff = (oppChoice === "Cooperate") ? 70 : 0;
+                }
+            } else {
+                oppChoice = "Cooperate";
+                payoff = (choice === "Cooperate") ? 70 : 100;
+            }
+        } else {
+            let aiCooperateProb = LIT_PARAMS.PD_COOPERATE;
+            oppChoice = (Math.random() < aiCooperateProb) ? "Cooperate" : "Defect";
+
+            if (choice === "Cooperate") {
+                payoff = (oppChoice === "Cooperate") ? 70 : 0;
+            } else {
+                payoff = (oppChoice === "Cooperate") ? 100 : 30;
+            }
+        }
+
+        if (gameNum === 1) {
+            expData.game1Payoff = payoff;
+            expData.game1OppChoice = oppChoice;
+        } else {
+            expData.game2Payoff = payoff;
+            expData.game2OppChoice = oppChoice;
+        }
+
+        expData.totalPoints += payoff;
+    }
+
+    function showPayoffResult() {
+        let g1Pts = expData.game1Payoff * 0.5;
+        let g2Pts = expData.game2Payoff * 0.5;
+        let totalPts = 30 + g1Pts + g2Pts;
+
+        document.getElementById("result-g1-score").innerText = expData.game1Payoff;
+        document.getElementById("result-g1-pts").innerText = g1Pts;
+        document.getElementById("result-g2-score").innerText = expData.game2Payoff;
+        document.getElementById("result-g2-pts").innerText = g2Pts;
+        document.getElementById("result-total-score").innerText = totalPts;
+        showStep("step-payoff-result");
+    }
+
+    function submitPostEval() {
+        for (let item of emoItems) {
+            let el = document.querySelector(`input[name="emo_${item.key}"]:checked`);
+            if (!el) { alert("請完整填寫情緒感受問卷！"); return; }
+            expData["emo" + item.key] = el.value;
+        }
+
+        showStep("step-demographics");
+    }
+
+    function submitAllData() {
+        let age = document.getElementById("demo-age").value;
+        let gender = document.querySelector('input[name="demo_gender"]:checked');
+        let religion = document.getElementById("demo-religion").value;
+        let ethnicity = document.getElementById("demo-ethnicity").value;
+        let gameExp = document.querySelector('input[name="demo_game_exp"]:checked');
+
+        if (!age || !gender || !religion || !ethnicity || !gameExp) {
+            alert("請完整填寫基本資料！");
+            return;
+        }
+
+        expData.age = age;
+        expData.gender = gender.value;
+        expData.religion = religion;
+        expData.ethnicity = ethnicity;
+        expData.gameExp = gameExp.value;
+
+        fetch(GAS_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(expData)
+        }).then(() => {
+            showStep("step-end");
+        }).catch(err => {
+            console.error("Data submission failed", err);
+            showStep("step-end");
+        });
+    }
+</script>
+</body>
+</html>
