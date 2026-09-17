@@ -59,19 +59,20 @@
     <div id="step-consent" class="step active">
         <h2>知情同意書</h2>
         <p>歡迎參加本心理學研究實驗。本研究旨在探討人類與AI或其他人際互動對決策之影響。</p>
+        <p>(待完成)</p>
         <p>參與報酬：完成實驗可獲得 <strong>30 點 Line Points</strong>，並依據遊戲決策結果最高可額外獲得 <strong>100 點 Line Points</strong>（兩次賽局得分換算上限）。</p>
         <button onclick="startConsent()">我同意並開始實驗</button>
     </div>
 
     <!-- 步驟 1：前測 -->
     <div id="step-pre-anthro" class="step">
-        <h3>前測問卷：經驗與感知印象</h3>
+        <h3>AI聊天機器人的使用經驗與互動感受</h3>
         
-        <h4>一、 AI 經驗評估</h4>
+        <h4>一、 請問您過去的AI 聊天機器人使用經驗</h4>
         <div id="pre-ai-questions"></div>
 
-        <h4>二、 感知印象評估</h4>
-        <p>請依據直覺評估您感覺對手的表現更接近：</p>
+        <h4>二、 請問您過去與AI聊天機器人的互動感受</h4>
+        <p>我感覺AI聊天機器人的表現更______ </p>
         <div id="pre-anthro-questions"></div>
         <button onclick="submitPreAnthro()">下一步</button>
     </div>
@@ -246,12 +247,12 @@
     ];
 
     const emoItems = [
-        { title: "感到開心 (Happy)", left: "非常無感", right: "非常強烈", key: "Happy" },
-        { title: "感到鬆一口氣 (Relieved)", left: "非常無感", right: "非常強烈", key: "Relieved" },
-        { title: "感到獲勝感 (Victorious)", left: "非常無感", right: "非常強烈", key: "Victorious" },
-        { title: "感到生氣 (Angry)", left: "非常無感", right: "非常強烈", key: "Angry" },
-        { title: "感到內疚 (Guilty)", left: "非常無感", right: "非常強烈", key: "Guilty" },
-        { title: "感到失望 (Disappointed)", left: "非常無感", right: "非常強烈", key: "Disappointed" }
+        { title: "感到開心", left: "非常無感", right: "非常強烈", key: "Happy" },
+        { title: "感到鬆一口氣", left: "非常無感", right: "非常強烈", key: "Relieved" },
+        { title: "感到獲勝感", left: "非常無感", right: "非常強烈", key: "Victorious" },
+        { title: "感到生氣", left: "非常無感", right: "非常強烈", key: "Angry" },
+        { title: "感到內疚", left: "非常無感", right: "非常強烈", key: "Guilty" },
+        { title: "感到失望", left: "非常無感", right: "非常強烈", key: "Disappointed" }
     ];
 
     const topics = [
@@ -284,7 +285,7 @@
         let container = document.getElementById("pre-ai-questions");
         container.innerHTML = `
             <div class="likert-card">
-                <div class="likert-title">1. 我對於使用 AI 聊天機器人的經驗非常豐富：</div>
+                <div class="likert-title">1. 我對於使用 AI 聊天機器人的經驗非常豐富：(要改為工具性關係)</div>
                 <div class="likert-scale">
                     <div class="likert-label left">非常不同意</div>
                     ${[1,2,3,4,5,6].map(i => `
@@ -297,7 +298,7 @@
                 </div>
             </div>
             <div class="likert-card">
-                <div class="likert-title">2. 我對於使用 AI 聊天機器人感到很熟悉：</div>
+                <div class="likert-title">2. 我認為我對於AI 聊天機器人非常熟悉：(要改為情感性關係)</div>
                 <div class="likert-scale">
                     <div class="likert-label left">非常不同意</div>
                     ${[1,2,3,4,5,6].map(i => `
@@ -367,11 +368,11 @@
         let container = document.getElementById("demographics-cards-container");
         container.innerHTML = `
             <div class="demo-group">
-                <label>1. 年齡：</label>
+                <label>1. 請問您的年齡：</label>
                 <input type="number" id="demo-age" placeholder="請輸入年齡 (例如: 25)">
             </div>
             <div class="demo-group">
-                <label>2. 性別：</label>
+                <label>2. 請問您的性別：</label>
                 <div class="demo-group-inline">
                     <label><input type="radio" name="demo_gender" value="Male"> 男</label>
                     <label><input type="radio" name="demo_gender" value="Female"> 女</label>
@@ -379,16 +380,16 @@
                 </div>
             </div>
             <div class="demo-group">
-                <label>3. 宗教信仰：</label>
+                <label>3. 請問您的宗教信仰：</label>
                 <input type="text" id="demo-religion" placeholder="例如：無、佛教、基督教等">
             </div>
             <div class="demo-group">
-                <label>4. 種族/族群：</label>
-                <input type="text" id="demo-ethnicity" value="漢族">
+                <label>4. 請問您的族群屬於：</label>
+                <input type="text" id="demo-ethnicity" value="華人">
             </div>
             <br>
             <div class="likert-card">
-                <div class="likert-title">5. 賽局遊戲經驗：</div>
+                <div class="likert-title">5. 請問您過去是否有賽局遊戲經驗：</div>
                 <div class="likert-scale">
                     <div class="likert-label left">無經驗</div>
                     ${[1,2,3,4,5,6].map(i => `
@@ -454,17 +455,17 @@
             titleEl.innerText = `賽局 ${gameNum}：一次性信任遊戲 - 規則說明與試玩`;
             contentEl.innerHTML = `
                 <p><strong>【遊戲規則】</strong></p>
-                <p>本遊戲包含兩位玩家：<strong>玩家 1 ( Trustor )</strong> 與 <strong>玩家 2 ( Trustee )</strong>。</p>
+                <p>本遊戲包含兩位玩家：<strong>玩家 1</strong> 與 <strong>玩家 2</strong>。</p>
                 <p>1. <strong>玩家 1 首先選擇：</strong>
                     <ul>
                         <li>若選擇【直接結束】，遊戲立即結束，雙方各獲得 <strong>30 分</strong>。</li>
-                        <li>若選擇【冒險合作】，決定權將轉交給玩家 2。</li>
+                        <li>若選擇【合作】，決定權將轉交給玩家 2。</li>
                     </ul>
                 </p>
-                <p>2. <strong>若玩家 1 選擇【冒險合作】，玩家 2 進行選擇：</strong>
+                <p>2. <strong>若玩家 1 選擇【合作】，玩家 2 進行選擇：</strong>
                     <ul>
-                        <li>若選擇【合作回報】，雙方各獲得 <strong>70 分</strong>。</li>
-                        <li>若選擇【背叛獨吞】，玩家 1 獲得 <strong>0 分</strong>，玩家 2 獲得 <strong>100 分</strong>。</li>
+                        <li>若選擇【合作】，雙方各獲得 <strong>70 分</strong>。</li>
+                        <li>若選擇【背叛】，玩家 1 獲得 <strong>0 分</strong>，玩家 2 獲得 <strong>100 分</strong>。</li>
                     </ul>
                 </p>
 
@@ -534,9 +535,9 @@
         if (scenario === "End") {
             resEl.innerHTML = "【試玩結果】玩家 1 選擇【直接結束】➔ 玩家 1 得 <strong>30 分</strong>，玩家 2 得 <strong>30 分</strong>。";
         } else if (scenario === "Cooperate_Cooperate") {
-            resEl.innerHTML = "【試玩結果】玩家 1 選擇【冒險合作】且玩家 2【合作回報】➔ 玩家 1 得 <strong>70 分</strong>，玩家 2 得 <strong>70 分</strong>。";
+            resEl.innerHTML = "【試玩結果】玩家 1 選擇【合作】且玩家 2也選擇【合作】➔ 玩家 1 得 <strong>70 分</strong>，玩家 2 得 <strong>70 分</strong>。";
         } else if (scenario === "Cooperate_Defect") {
-            resEl.innerHTML = "【試玩結果】玩家 1 選擇【冒險合作】但玩家 2【背叛獨吞】➔ 玩家 1 得 <strong>0 分</strong>，玩家 2 得 <strong>100 分</strong>。";
+            resEl.innerHTML = "【試玩結果】玩家 1 選擇【合作】但玩家 2選擇【背叛】➔ 玩家 1 得 <strong>0 分</strong>，玩家 2 得 <strong>100 分</strong>。";
         }
     }
 
@@ -580,19 +581,19 @@
         if (gameType === "Trust") {
             if (expData.trustRole === "Player1") {
                 predHTML = `
-                    <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對方會選擇合作</label>
-                    <label><input type="radio" name="g${gameNum}_pred" value="Defect"> 預測對方會選擇背叛</label>
+                    <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對手會選擇合作</label>
+                    <label><input type="radio" name="g${gameNum}_pred" value="Defect"> 預測對手會選擇背叛</label>
                 `;
             } else {
                 predHTML = `
-                    <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對方 (玩家1) 會選擇合作</label>
-                    <label><input type="radio" name="g${gameNum}_pred" value="End"> 預測對方 (玩家1) 會選擇結束遊戲</label>
+                    <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對手 (玩家1) 會選擇合作</label>
+                    <label><input type="radio" name="g${gameNum}_pred" value="End"> 預測對手 (玩家1) 會選擇結束遊戲</label>
                 `;
             }
         } else {
             predHTML = `
-                <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對方會選擇合作</label>
-                <label><input type="radio" name="g${gameNum}_pred" value="Defect"> 預測對方會選擇背叛</label>
+                <label><input type="radio" name="g${gameNum}_pred" value="Cooperate"> 預測對手會選擇合作</label>
+                <label><input type="radio" name="g${gameNum}_pred" value="Defect"> 預測對手會選擇背叛</label>
             `;
         }
 
@@ -626,7 +627,7 @@
 
         let roleText = "";
         if (gameType === "Trust") {
-            roleText = expData.trustRole === "Player1" ? "玩家 1 (Trustor)" : "玩家 2 (Trustee)";
+            roleText = expData.trustRole === "Player1" ? "玩家 1" : "玩家 2";
         } else {
             roleText = "雙方同時決策玩家";
         }
