@@ -234,13 +234,13 @@
 <script>
     // ================= 後端與服務設定（佔位字串，部署前請填入實際值） =================
     // GAS_URL：Google Apps Script Web App 網址，同時負責 (1)寫入Google試算表 (2)代理呼叫AI聊天API
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwZSQwqImJAVqRfJdJ1Sz4XYVHQXBDlWgwxe50GprA-dh7Ld1vyFnLYa0U555s_CAI/exec";
+    const GAS_URL = "https://script.google.com/macros/s/您的部署ID/exec";
 
     // Firebase 設定（用於等候大廳線上人數 + 真人配對，前端曝光屬正常設計，安全性由 Database Rules 控制）
     const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyBnD573O_UHrKLPEO27iYGuyjCTyuuqR6Y",
-        databaseURL: "https://study1ex-default-rtdb.firebaseio.com",
-        projectId: "study1ex"
+        apiKey: "您的FIREBASE_API_KEY",
+        databaseURL: "https://您的專案.firebaseio.com",
+        projectId: "您的FIREBASE_PROJECT_ID"
     };
 
     let fbApp = null, fbDb = null;
@@ -262,6 +262,7 @@
     let lastUserMsgTime = 0;
     let idleNudgeTimer = null;
     let idleNudgeSent = false;
+    let chatProcessing = false; // AI是否正在產生回覆中（不鎖住輸入框，讓使用者可以邊等邊繼續打字）
 
     let expData = {
         subjectId: "SUB_" + Math.floor(Math.random() * 899999 + 100000),
@@ -500,7 +501,7 @@
         return data.reply || "";
     }
 
-    async function sendChatMessage() {
+    function sendChatMessage() {
         let input = document.getElementById("chat-input");
         let text = input.value.trim();
         if (!text) return;
@@ -509,31 +510,40 @@
         idleNudgeSent = false;
         lastUserMsgTime = Date.now();
 
+        // 輸入框不鎖住：使用者可以在AI回覆期間繼續打字、繼續送出下一則訊息，
+        // 就像平常聊天軟體那樣。多則訊息會依序送給AI處理，不會互搶。
         appendChatBubble("user", text);
         chatMessages.push({ role: "user", content: text });
         input.value = "";
-        input.disabled = true;
-        document.getElementById("chat-send-btn").disabled = true;
+        input.focus();
 
-        appendChatBubble("assistant", "AI 思考中...", true);
+        processChatQueue();
+    }
 
+    // 依序處理尚未取得AI回覆的使用者訊息；若已經有一個處理迴圈在跑，
+    // 直接return即可——迴圈本身會在while條件中看到新加入的訊息並繼續處理。
+    async function processChatQueue() {
+        if (chatProcessing) return;
+        chatProcessing = true;
         try {
-            let reply = await callAI(chatMessages);
-            let pendingBubble = document.getElementById("chat-pending-bubble");
-            pendingBubble.innerText = reply || "（AI無回應內容）";
-            pendingBubble.classList.remove("chat-bubble-pending");
-            pendingBubble.removeAttribute("id");
-            chatMessages.push({ role: "assistant", content: reply });
-        } catch (error) {
-            let pendingBubble = document.getElementById("chat-pending-bubble");
-            pendingBubble.innerText = "（AI暫時無法回應，請確認網路連線或聯繫研究人員）";
-            pendingBubble.classList.remove("chat-bubble-pending");
-            pendingBubble.removeAttribute("id");
-            console.error(error);
+            while (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].role === "user") {
+                let pendingBubble = appendChatBubble("assistant", "AI 思考中...", true);
+                try {
+                    let reply = await callAI(chatMessages);
+                    pendingBubble.innerText = reply || "（AI無回應內容）";
+                    pendingBubble.classList.remove("chat-bubble-pending");
+                    pendingBubble.removeAttribute("id");
+                    chatMessages.push({ role: "assistant", content: reply });
+                } catch (error) {
+                    pendingBubble.innerText = "（AI暫時無法回應，請確認網路連線或聯繫研究人員）";
+                    pendingBubble.classList.remove("chat-bubble-pending");
+                    pendingBubble.removeAttribute("id");
+                    console.error(error);
+                    break; // 發生錯誤就停止自動重試，避免卡在無限迴圈；使用者可再輸入新訊息觸發下一輪
+                }
+            }
         } finally {
-            input.disabled = false;
-            document.getElementById("chat-send-btn").disabled = false;
-            input.focus();
+            chatProcessing = false;
             scheduleIdleNudge();
         }
     }
@@ -542,8 +552,9 @@
     function scheduleIdleNudge() {
         clearTimeout(idleNudgeTimer);
         idleNudgeTimer = setTimeout(async () => {
-            if (idleNudgeSent || chatMessages.length === 0) return;
+            if (idleNudgeSent || chatMessages.length === 0 || chatProcessing) return;
             idleNudgeSent = true;
+            chatProcessing = true; // 防止使用者在此同時送出訊息，兩個請求互相打架
             appendChatBubble("assistant", "AI 思考中...", true);
             try {
                 let reply = await callAI(chatMessages, true);
@@ -558,6 +569,11 @@
                 let pendingBubble = document.getElementById("chat-pending-bubble");
                 if (pendingBubble) pendingBubble.remove();
                 console.error(error);
+            } finally {
+                chatProcessing = false;
+                // 若使用者在等待期間已經打字送出新訊息（雖然理論上輸入不會被鎖住），
+                // 保險起見再檢查一次佇列，確保訊息不會被漏掉。
+                processChatQueue();
             }
         }, 25000); // 25秒無發言則主動提問
     }
