@@ -234,13 +234,13 @@
 <script>
     // ================= 後端與服務設定（佔位字串，部署前請填入實際值） =================
     // GAS_URL：Google Apps Script Web App 網址，同時負責 (1)寫入Google試算表 (2)代理呼叫AI聊天API
-    const GAS_URL = "https://script.google.com/macros/s/您的部署ID/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwZSQwqImJAVqRfJdJ1Sz4XYVHQXBDlWgwxe50GprA-dh7Ld1vyFnLYa0U555s_CAI/exec";
 
     // Firebase 設定（用於等候大廳線上人數 + 真人配對，前端曝光屬正常設計，安全性由 Database Rules 控制）
     const FIREBASE_CONFIG = {
-        apiKey: "您的FIREBASE_API_KEY",
-        databaseURL: "https://您的專案.firebaseio.com",
-        projectId: "您的FIREBASE_PROJECT_ID"
+        apiKey: "AIzaSyBnD573O_UHrKLPEO27iYGuyjCTyuuqR6Y",
+        databaseURL: "https://study1ex-default-rtdb.firebaseio.com",
+        projectId: "study1ex"
     };
 
     let fbApp = null, fbDb = null;
