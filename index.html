@@ -314,11 +314,25 @@
     const gameConditions = ["Trust_P1", "Trust_P2", "PD"];
 
     window.onload = function() {
-        expData.opponentGroup = opponentGroups[Math.floor(Math.random() * 3)];
-        let gc = gameConditions[Math.floor(Math.random() * 3)];
-        if (gc === "Trust_P1") { expData.gameType = "Trust"; expData.trustRole = "Player1"; }
-        else if (gc === "Trust_P2") { expData.gameType = "Trust"; expData.trustRole = "Player2"; }
-        else { expData.gameType = "PD"; expData.trustRole = ""; }
+        // ===== 測試專用：網址加上 ?testGame=Trust_P1 / Trust_P2 / PD 可強制指定分組，跳過隨機分派 =====
+        // 例如要測真人配對，開兩個分頁分別用：
+        //   ...index.html?testGame=Trust_P1   （另一分頁用 Trust_P2）
+        //   ...index.html?testGame=PD          （另一分頁也用 PD）
+        // 正式受試者收到的連結不會帶這個參數，完全不受影響。
+        const testGame = new URLSearchParams(window.location.search).get("testGame");
+
+        if (testGame === "Trust_P1" || testGame === "Trust_P2" || testGame === "PD") {
+            expData.opponentGroup = "Human";
+            if (testGame === "Trust_P1") { expData.gameType = "Trust"; expData.trustRole = "Player1"; }
+            else if (testGame === "Trust_P2") { expData.gameType = "Trust"; expData.trustRole = "Player2"; }
+            else { expData.gameType = "PD"; expData.trustRole = ""; }
+        } else {
+            expData.opponentGroup = opponentGroups[Math.floor(Math.random() * 3)];
+            let gc = gameConditions[Math.floor(Math.random() * 3)];
+            if (gc === "Trust_P1") { expData.gameType = "Trust"; expData.trustRole = "Player1"; }
+            else if (gc === "Trust_P2") { expData.gameType = "Trust"; expData.trustRole = "Player2"; }
+            else { expData.gameType = "PD"; expData.trustRole = ""; }
+        }
 
         // AI_Chat / AI_NoChat 組的對手本來就是AI，直接標記matchType，
         // 方便之後看資料時一眼分辨「真人配對成功／逾時退回模擬／AI對手」
