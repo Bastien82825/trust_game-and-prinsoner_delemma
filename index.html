@@ -745,7 +745,8 @@
 
     async function beginHumanMatching() {
         matchState.status = "searching";
-        if (!fbDb) { matchState.status = "fallback"; expData.matchType = "Simulated_Fallback"; return; }
+        console.log("[配對] 開始真人配對，subjectId=" + expData.subjectId + "，gameType=" + expData.gameType + "，trustRole=" + expData.trustRole + "，nickname=" + expData.nickname);
+        if (!fbDb) { console.warn("[配對] Firebase未初始化(fbDb為null)，直接改用模擬對手"); matchState.status = "fallback"; expData.matchType = "Simulated_Fallback"; return; }
 
         try {
             if (expData.gameType === "Trust") {
@@ -754,10 +755,11 @@
                 await matchPD();
             }
         } catch (e) {
-            console.error("配對過程發生錯誤，改為模擬對手：", e);
+            console.error("[配對] 配對過程發生錯誤，改為模擬對手：", e);
             matchState.status = "fallback";
             expData.matchType = "Simulated_Fallback";
         }
+        console.log("[配對] 配對流程結束，最終狀態：", JSON.stringify(matchState), "matchType=" + expData.matchType);
     }
 
     async function matchTrust() {
@@ -767,10 +769,12 @@
 
         // 1) 先看對向佇列有沒有現成等待中的對手
         let snap = await fbDb.ref(`queue/${otherKey}`).limitToFirst(1).once('value');
+        console.log(`[配對][Trust] 我是${myRole}，查詢對向佇列 queue/${otherKey}，是否有等待中的人：`, snap.exists(), snap.exists() ? snap.val() : "");
         if (snap.exists()) {
             let partnerId = Object.keys(snap.val())[0];
             let partnerNickname = (snap.val()[partnerId] && snap.val()[partnerId].nickname) || "匿名玩家";
             let claim = await fbDb.ref(`queue/${otherKey}/${partnerId}`).transaction(cur => cur === null ? undefined : null);
+            console.log(`[配對][Trust] 嘗試搶配對象 ${partnerId}，搶成功嗎(committed且原值非null)：`, claim.committed, claim.snapshot.val());
             if (claim.committed && claim.snapshot.val() === null) {
                 let matchId = "M_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
                 let p1 = myRole === "Player1" ? expData.subjectId : partnerId;
@@ -781,50 +785,62 @@
                 await fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId, partnerNickname: expData.nickname });
                 matchState = { status: "matched", matchId, myRole, partnerNickname };
                 expData.matchType = "Human";
+                console.log(`[配對][Trust] 配對成功(我是搶到對手的一方)！matchId=${matchId}，對手暱稱=${partnerNickname}`);
                 return;
             }
         }
 
         // 2) 沒搶到，自己排隊等待被配對（連同暱稱一起寫入，方便對方顯示）
+        console.log(`[配對][Trust] 沒有搶到現成對手，開始排隊寫入 queue/${myKey}/${expData.subjectId}，最長等待${MATCH_WAIT_TIMEOUT_MS}ms`);
         await fbDb.ref(`queue/${myKey}/${expData.subjectId}`).set({ ts: Date.now(), nickname: expData.nickname });
         let result = await waitForPath(`matchAssignment/${expData.subjectId}`, v => v, MATCH_WAIT_TIMEOUT_MS);
         fbDb.ref(`queue/${myKey}/${expData.subjectId}`).remove();
+        console.log(`[配對][Trust] 排隊等待結束，是否逾時：`, result.timedOut, result.timedOut ? "" : result.value);
 
         if (!result.timedOut) {
             matchState = { status: "matched", matchId: result.value.matchId, myRole, partnerNickname: result.value.partnerNickname || "匿名玩家" };
             expData.matchType = "Human";
+            console.log(`[配對][Trust] 配對成功(我是排隊等到對手的一方)！matchId=${result.value.matchId}，對手暱稱=${matchState.partnerNickname}`);
         } else {
             matchState.status = "fallback";
             expData.matchType = "Simulated_Fallback";
+            console.log("[配對][Trust] 逾時30秒仍未配對到真人，改為模擬對手");
         }
     }
 
     async function matchPD() {
         let snap = await fbDb.ref(`queue/PD`).limitToFirst(1).once('value');
+        console.log("[配對][PD] 查詢佇列 queue/PD，是否有等待中的人：", snap.exists(), snap.exists() ? snap.val() : "");
         if (snap.exists()) {
             let partnerId = Object.keys(snap.val())[0];
             let partnerNickname = (snap.val()[partnerId] && snap.val()[partnerId].nickname) || "匿名玩家";
             let claim = await fbDb.ref(`queue/PD/${partnerId}`).transaction(cur => cur === null ? undefined : null);
+            console.log(`[配對][PD] 嘗試搶配對象 ${partnerId}，搶成功嗎(committed且原值非null)：`, claim.committed, claim.snapshot.val());
             if (claim.committed && claim.snapshot.val() === null) {
                 let matchId = "M_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
                 await fbDb.ref(`matches/${matchId}`).set({ a: expData.subjectId, b: partnerId, choiceA: null, choiceB: null, aNickname: expData.nickname, bNickname: partnerNickname });
                 await fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId, partnerNickname: expData.nickname });
                 matchState = { status: "matched", matchId, myRole: "a", partnerNickname };
                 expData.matchType = "Human";
+                console.log(`[配對][PD] 配對成功(我是搶到對手的一方)！matchId=${matchId}，對手暱稱=${partnerNickname}`);
                 return;
             }
         }
 
+        console.log(`[配對][PD] 沒有搶到現成對手，開始排隊寫入 queue/PD/${expData.subjectId}，最長等待${MATCH_WAIT_TIMEOUT_MS}ms`);
         await fbDb.ref(`queue/PD/${expData.subjectId}`).set({ ts: Date.now(), nickname: expData.nickname });
         let result = await waitForPath(`matchAssignment/${expData.subjectId}`, v => v, MATCH_WAIT_TIMEOUT_MS);
         fbDb.ref(`queue/PD/${expData.subjectId}`).remove();
+        console.log(`[配對][PD] 排隊等待結束，是否逾時：`, result.timedOut, result.timedOut ? "" : result.value);
 
         if (!result.timedOut) {
             matchState = { status: "matched", matchId: result.value.matchId, myRole: "b", partnerNickname: result.value.partnerNickname || "匿名玩家" };
             expData.matchType = "Human";
+            console.log(`[配對][PD] 配對成功(我是排隊等到對手的一方)！matchId=${result.value.matchId}，對手暱稱=${matchState.partnerNickname}`);
         } else {
             matchState.status = "fallback";
             expData.matchType = "Simulated_Fallback";
+            console.log("[配對][PD] 逾時30秒仍未配對到真人，改為模擬對手");
         }
     }
 
@@ -833,6 +849,7 @@
         if (expData.opponentGroup !== "Human") return;
         if (matchState.status !== "searching") return;
 
+        console.log("[配對] 受試者答題速度較快，配對仍在searching中，顯示等待畫面");
         showStep("step-waiting");
         document.getElementById("waiting-title").innerText = "正在配對真實玩家中...";
         document.getElementById("waiting-desc").innerText = "請稍候，最長等候 30 秒，逾時將自動由系統模擬對手接手。";
