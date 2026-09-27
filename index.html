@@ -792,9 +792,13 @@
 
         // 2) 沒搶到，自己排隊等待被配對（連同暱稱一起寫入，方便對方顯示）
         console.log(`[配對][Trust] 沒有搶到現成對手，開始排隊寫入 queue/${myKey}/${expData.subjectId}，最長等待${MATCH_WAIT_TIMEOUT_MS}ms`);
-        await fbDb.ref(`queue/${myKey}/${expData.subjectId}`).set({ ts: Date.now(), nickname: expData.nickname });
+        let myQueueRef = fbDb.ref(`queue/${myKey}/${expData.subjectId}`);
+        await myQueueRef.set({ ts: Date.now(), nickname: expData.nickname });
+        // 若受試者中途關閉分頁／斷線，讓Firebase自動清掉這筆排隊資料，避免留下永久卡住的幽靈紀錄
+        myQueueRef.onDisconnect().remove();
         let result = await waitForPath(`matchAssignment/${expData.subjectId}`, v => v, MATCH_WAIT_TIMEOUT_MS);
-        fbDb.ref(`queue/${myKey}/${expData.subjectId}`).remove();
+        myQueueRef.onDisconnect().cancel();
+        myQueueRef.remove();
         console.log(`[配對][Trust] 排隊等待結束，是否逾時：`, result.timedOut, result.timedOut ? "" : result.value);
 
         if (!result.timedOut) {
@@ -828,9 +832,13 @@
         }
 
         console.log(`[配對][PD] 沒有搶到現成對手，開始排隊寫入 queue/PD/${expData.subjectId}，最長等待${MATCH_WAIT_TIMEOUT_MS}ms`);
-        await fbDb.ref(`queue/PD/${expData.subjectId}`).set({ ts: Date.now(), nickname: expData.nickname });
+        let myQueueRef = fbDb.ref(`queue/PD/${expData.subjectId}`);
+        await myQueueRef.set({ ts: Date.now(), nickname: expData.nickname });
+        // 若受試者中途關閉分頁／斷線，讓Firebase自動清掉這筆排隊資料，避免留下永久卡住的幽靈紀錄
+        myQueueRef.onDisconnect().remove();
         let result = await waitForPath(`matchAssignment/${expData.subjectId}`, v => v, MATCH_WAIT_TIMEOUT_MS);
-        fbDb.ref(`queue/PD/${expData.subjectId}`).remove();
+        myQueueRef.onDisconnect().cancel();
+        myQueueRef.remove();
         console.log(`[配對][PD] 排隊等待結束，是否逾時：`, result.timedOut, result.timedOut ? "" : result.value);
 
         if (!result.timedOut) {
