@@ -142,13 +142,14 @@
             <button id="chat-send-btn" onclick="sendChatMessage()">送出</button>
         </div>
 
-        <div class="demo-group" style="margin-top:25px;">
-            <label>請您幫這個AI聊天機器人命名（選填）：</label>
-            <input type="text" id="chat-ai-name" placeholder="不填的話就先稱呼它「AI聊天機器人」囉">
-        </div>
-
         <h4 style="margin-top:25px;">討論結束後，請說說您的感想（至少 30 字）：</h4>
         <textarea id="chat-response" placeholder="請在此輸入您的感想..."></textarea>
+
+        <div class="demo-group" style="margin-top:20px; display:flex; align-items:center; gap:10px; flex-wrap:nowrap;">
+            <label style="white-space:nowrap; margin:0;">請您幫這個AI聊天機器人命名（選填）：</label>
+            <input type="text" id="chat-ai-name" maxlength="10" placeholder="AI聊天機器人" style="width:9em; flex:0 0 auto;">
+        </div>
+
         <button onclick="submitChat()">完成討論並繼續</button>
     </div>
 
@@ -163,7 +164,17 @@
 
     <!-- 賽局遊戲經驗問卷 + 等候大廳 (合併) -->
     <div id="step-game-exp" class="step">
-        <h3>賽局遊戲經驗調查</h3>
+        <h2 style="margin-top:0;">等待大廳</h2>
+        <div class="lobby-count-box">
+            <div>目前線上參與人數</div>
+            <div class="lobby-count-num" id="lobby-online-count">--</div>
+            <div>人</div>
+        </div>
+        <p class="lobby-note">
+            系統會在接下來的賽局階段盡量為您配對「真實玩家」。若等候超過 30 秒仍未配對成功，將自動改由系統模擬對手接手，確保實驗能順利進行，不會讓您一直等待。
+        </p>
+
+        <h3 style="margin-top:35px;">賽局遊戲經驗調查</h3>
         <div class="demo-group">
             <label>1. 請問您過去是否玩過賽局遊戲？</label>
             <div class="demo-group-inline">
@@ -174,22 +185,12 @@
         <br>
         <div id="game-know-container"></div>
 
-        <div class="demo-group" style="margin-top:25px;">
-            <label>3. 請設定您的暱稱：</label>
-            <input type="text" id="demo-nickname" placeholder="若配對到真實玩家，將以此暱稱顯示給對方">
+        <div class="demo-group" style="margin-top:25px; display:flex; align-items:center; gap:10px; flex-wrap:nowrap;">
+            <label style="white-space:nowrap; margin:0;">3. 請設定您的暱稱：</label>
+            <input type="text" id="demo-nickname" maxlength="10" style="width:9em; flex:0 0 auto;">
         </div>
 
-        <h2 style="margin-top:35px;">等待大廳</h2>
-        <div class="lobby-count-box">
-            <div>目前線上參與人數</div>
-            <div class="lobby-count-num" id="lobby-online-count">--</div>
-            <div>人</div>
-        </div>
-        <p class="lobby-note">
-            系統會在接下來的賽局階段盡量為您配對「真實玩家」。若等候超過 30 秒仍未配對成功，將自動改由系統模擬對手接手，確保實驗能順利進行，不會讓您一直等待。
-        </p>
-
-        <button onclick="submitGameExp()">開始賽局遊戲</button>
+        <button onclick="submitGameExp()" style="margin-top:25px;">開始賽局遊戲</button>
     </div>
 
     <!-- 賽局：規則與測試 -->
@@ -361,8 +362,10 @@
         "約會遲到 5 分鐘算是正常還是不能接受？請說明原因。"
     ];
 
-    // ================= 9組隨機分派：3種對手條件 × 3種賽局/角色條件 = 1/9機率 =================
-    const opponentGroups = ["AI_Chat", "AI_NoChat", "Human"];
+    // ================= 9組隨機分派：3種對手條件 × 3種賽局/角色條件 =================
+    // 注意：Human組因真人配對困難，權重加倍（陣列中放兩次"Human"），
+    // 故實際機率為 AI_Chat 1/4、AI_NoChat 1/4、Human 1/2，而非均等的1/3。
+    const opponentGroups = ["AI_Chat", "AI_NoChat", "Human", "Human"];
     const gameConditions = ["Trust_P1", "Trust_P2", "PD"];
 
     window.onload = function() {
@@ -379,7 +382,7 @@
             else if (testGame === "Trust_P2") { expData.gameType = "Trust"; expData.trustRole = "Player2"; }
             else { expData.gameType = "PD"; expData.trustRole = ""; }
         } else {
-            expData.opponentGroup = opponentGroups[Math.floor(Math.random() * 3)];
+            expData.opponentGroup = opponentGroups[Math.floor(Math.random() * opponentGroups.length)];
             let gc = gameConditions[Math.floor(Math.random() * 3)];
             if (gc === "Trust_P1") { expData.gameType = "Trust"; expData.trustRole = "Player1"; }
             else if (gc === "Trust_P2") { expData.gameType = "Trust"; expData.trustRole = "Player2"; }
@@ -663,7 +666,7 @@
         expData.chatTurns = chatMessages.filter(m => m.role === "user").length;
         expData.aiName = document.getElementById("chat-ai-name").value.trim();
 
-        showAIInfoStep();
+        initGameStage();
     }
 
     function submitGameExp() {
@@ -683,13 +686,8 @@
             beginHumanMatching();
         }
 
-        // 只有 AI_Chat 組會先與AI進行中性話題互動；AI_NoChat組直接看AI組說明；Human組直接進入遊戲
-        if (expData.opponentGroup === "AI_Chat") {
-            let selectedTopic = topics[Math.floor(Math.random() * topics.length)];
-            document.getElementById("chat-topic").innerText = selectedTopic;
-            expData.chatTopic = selectedTopic;
-            showStep("step-chat");
-        } else if (expData.opponentGroup === "AI_NoChat") {
+        // AI_Chat / AI_NoChat 組都先看AI組說明；AI_Chat組看完說明後才進入聊天互動；Human組直接進入遊戲
+        if (expData.opponentGroup === "AI_Chat" || expData.opponentGroup === "AI_NoChat") {
             showAIInfoStep();
         } else {
             initGameStage();
@@ -710,7 +708,16 @@
         if (aiInfoAdvanced) return;
         aiInfoAdvanced = true;
         clearTimeout(aiInfoTimer);
-        initGameStage();
+
+        // 只有 AI_Chat 組會在此說明步驟之後，接著進行中性話題互動；AI_NoChat組直接進入遊戲
+        if (expData.opponentGroup === "AI_Chat") {
+            let selectedTopic = topics[Math.floor(Math.random() * topics.length)];
+            document.getElementById("chat-topic").innerText = selectedTopic;
+            expData.chatTopic = selectedTopic;
+            showStep("step-chat");
+        } else {
+            initGameStage();
+        }
     }
 
     // ================= 真人配對（Firebase即時資料庫） =================
