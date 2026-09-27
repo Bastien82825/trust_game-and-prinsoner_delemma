@@ -49,6 +49,7 @@
         .likert-radio-col { display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .likert-radio-col input[type="radio"], .likert-scale-flex input[type="radio"] { width: 22px; height: 22px; cursor: pointer; margin: 0; }
 
+        .section-disabled { opacity: 0.45; pointer-events: none; }
         .payoff-box { background-color: #eef7fe; border-left: 5px solid #3498db; padding: 15px 20px; margin: 15px 0; border-radius: 4px; }
         .info-card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin: 15px 0; }
         .info-item { margin-bottom: 12px; font-size: 16px; line-height: 1.5; }
@@ -73,8 +74,25 @@
             .container { padding: 16px; margin: 8px auto; border-radius: 8px; }
             h2 { font-size: 20px; }
             h3 { font-size: 17px; }
-            .likert-scale { grid-template-columns: repeat(6, 1fr); }
-            .likert-label.left, .likert-label.right { grid-column: 1 / -1; text-align: center; padding: 0; font-size: 12px; }
+            /* 手機版改用flexbox排版，避免grid在小螢幕下欄位跑掉、數字與圈圈對不齊的問題 */
+            .likert-scale {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+            }
+            .likert-label.left, .likert-label.right {
+                flex: 1 1 100%;
+                text-align: center;
+                padding: 4px 0;
+                font-size: 12px;
+                order: 0;
+            }
+            .likert-label.right { order: 2; }
+            .likert-radio-col {
+                flex: 1 1 0;
+                min-width: 0;
+                order: 1;
+            }
             .likert-num { font-size: 12px; }
             .demo-group-inline { flex-direction: column; align-items: flex-start; gap: 10px; }
             button { width: 100%; font-size: 16px; }
@@ -92,22 +110,7 @@
         <p>歡迎參加本心理學研究實驗。本研究旨在探討人類與AI或其他人際互動對決策之影響。</p>
         <p>(待完成)</p>
         <p>參與報酬：完成實驗可獲得 <strong>30 點 Line Points</strong>，並依據遊戲決策結果最高可額外獲得 <strong>100 點 Line Points</strong>。</p>
-        <button onclick="showStep('step-lobby')">我同意並開始實驗</button>
-    </div>
-
-    <!-- 等待大廳 (新增) -->
-    <div id="step-lobby" class="step">
-        <h2>等待大廳</h2>
-        <div class="lobby-count-box">
-            <div>目前線上參與人數</div>
-            <div class="lobby-count-num" id="lobby-online-count">--</div>
-            <div>人</div>
-        </div>
-        <p class="lobby-note">
-            系統會在稍後的賽局階段盡量為您配對「真實玩家」。若等候超過 20 秒仍未配對成功，將自動改由系統模擬對手接手，確保實驗能順利進行，不會讓您一直等待。<br>
-            請點擊下方按鈕開始填答問卷。
-        </p>
-        <button onclick="showStep('step-pre-anthro')">開始填答</button>
+        <button onclick="showStep('step-pre-anthro')">我同意並開始實驗</button>
     </div>
 
     <!-- 前測 -->
@@ -129,7 +132,7 @@
     <!-- 中性話題互動 (僅 AI_Chat 組) -->
     <div id="step-chat" class="step">
         <h3>話題討論任務</h3>
-        <p>請先與 AI 聊天機器人針對以下議題進行討論：</p>
+        <p>請先試著與 AI 聊天機器人針對以下議題進行討論並寫下你的感想：</p>
         <p><strong id="chat-topic"></strong></p>
 
         <div id="chat-window" class="chat-window"></div>
@@ -139,12 +142,26 @@
             <button id="chat-send-btn" onclick="sendChatMessage()">送出</button>
         </div>
 
-        <h4 style="margin-top:25px;">討論結束後，請總結您的看法（至少 50 字）：</h4>
-        <textarea id="chat-response" placeholder="請在此輸入您的結論..."></textarea>
+        <div class="demo-group" style="margin-top:25px;">
+            <label>請您幫這個AI聊天機器人命名（選填）：</label>
+            <input type="text" id="chat-ai-name" placeholder="不填的話就先稱呼它「AI聊天機器人」囉">
+        </div>
+
+        <h4 style="margin-top:25px;">討論結束後，請說說您的感想（至少 30 字）：</h4>
+        <textarea id="chat-response" placeholder="請在此輸入您的感想..."></textarea>
         <button onclick="submitChat()">完成討論並繼續</button>
     </div>
 
-    <!-- 賽局遊戲經驗問卷 -->
+    <!-- AI組專屬說明（有互動/無互動皆顯示），10秒無操作自動跳轉 -->
+    <div id="step-ai-info" class="step">
+        <h3>在遊戲開始之前</h3>
+        <p style="font-size:16px; line-height:1.8;">
+            承襲美國與日本研究，AI聊天機器人被訓練後能在接下來的遊戲中做出與人類類似的決定。譬如：它會知道你跟它在遊戲中做的決定各自能獲得的分數，並了解其決策所產生的結果也需要仰賴你的選擇。
+        </p>
+        <button onclick="proceedFromAIInfo()">我了解了，繼續</button>
+    </div>
+
+    <!-- 賽局遊戲經驗問卷 + 等候大廳 (合併) -->
     <div id="step-game-exp" class="step">
         <h3>賽局遊戲經驗調查</h3>
         <div class="demo-group">
@@ -156,6 +173,22 @@
         </div>
         <br>
         <div id="game-know-container"></div>
+
+        <div class="demo-group" style="margin-top:25px;">
+            <label>3. 請設定您的暱稱：</label>
+            <input type="text" id="demo-nickname" placeholder="若配對到真實玩家，將以此暱稱顯示給對方">
+        </div>
+
+        <h2 style="margin-top:35px;">等待大廳</h2>
+        <div class="lobby-count-box">
+            <div>目前線上參與人數</div>
+            <div class="lobby-count-num" id="lobby-online-count">--</div>
+            <div>人</div>
+        </div>
+        <p class="lobby-note">
+            系統會在接下來的賽局階段盡量為您配對「真實玩家」。若等候超過 30 秒仍未配對成功，將自動改由系統模擬對手接手，確保實驗能順利進行，不會讓您一直等待。
+        </p>
+
         <button onclick="submitGameExp()">開始賽局遊戲</button>
     </div>
 
@@ -210,10 +243,20 @@
         <button onclick="showStep('step-post-eval')">繼續填寫後測問卷</button>
     </div>
 
-    <!-- 後測評估 -->
+    <!-- 後測評估：情緒 + 再次選擇 + 賭博渴求量表 -->
     <div id="step-post-eval" class="step">
-        <h3>對於最終的遊戲結果，您現在的情緒感受如何？</h3>
+        <h3>遊戲結束啦！您最後獲得多少點數呢？對手又是誰呢？我們很想知道，您對於這個遊戲結果現在的感受怎麼樣？</h3>
         <div id="emo-questions"></div>
+
+        <h3 style="margin-top:30px;">如果對同樣的對手再來一局，你的選擇會是？</h3>
+        <div class="demo-group-inline">
+            <label><input type="radio" name="post_rechoice" value="Cooperate"> 合作</label>
+            <label><input type="radio" name="post_rechoice" value="Defect"> 背叛</label>
+        </div>
+
+        <h3 style="margin-top:30px;">請問您同不同意以下敘述？</h3>
+        <div id="gambling-craving-questions"></div>
+
         <button onclick="submitPostEval()">下一步</button>
     </div>
 
@@ -255,7 +298,7 @@
     // 研究者可於蒐集一定人數後，依實際觀察到的合作率手動調整下列數值。
     const LIT_PARAMS = { TRUST_P1_COOPERATE: 141 / 198, TRUST_P2_COOPERATE: 102 / 144, PD_COOPERATE: 0.45 };
 
-    const MATCH_WAIT_TIMEOUT_MS = 20000;   // 真人配對逾時：20秒
+    const MATCH_WAIT_TIMEOUT_MS = 30000;   // 真人配對逾時：30秒
     const PARTNER_CHOICE_TIMEOUT_MS = 30000; // 配對成功後，等待真人對手做出選擇的逾時保護
 
     let chatMessages = []; // 累積的對話紀錄 {role: 'user' | 'assistant', content: string}
@@ -275,7 +318,9 @@
         chatResponse: "", chatLog: "", chatTurns: 0,
         gamePlayed: "", gameKnowledge: "",
         choice: "", pred: "", conf: 0, payoff: 0, oppChoice: "",
-        totalPoints: 0
+        totalPoints: 0,
+        reChoice: "", gamblingCraving: {},
+        nickname: "", aiName: ""
     };
 
     // 賽局配對狀態（真人配對用）
@@ -295,12 +340,19 @@
     ];
 
     const emoItems = [
-        { left: "無感", right: "非常開心", key: "Happy" },
-        { left: "無感", right: "不禁鬆一口氣", key: "Relieved" },
-        { left: "無感", right: "耶斯！我贏了！", key: "Victorious" },
-        { left: "無感", right: "非常生氣", key: "Angry" },
-        { left: "無感", right: "非常內疚", key: "Guilty" },
-        { left: "無感", right: "非常失望", key: "Disappointed" }
+        { text: "我感覺很開心。", key: "Happy" },
+        { text: "我感覺鬆了口氣（也許是：幸好對方也跟我合作、還好我沒有選擇背叛）。", key: "Relieved" },
+        { text: "我感覺很得意（也許是：結果跟我想的一樣）。", key: "Victorious" },
+        { text: "我感覺有些生氣。", key: "Angry" },
+        { text: "我感覺有些過意不去（也許是：背叛了別人拿到高分）。", key: "Guilty" },
+        { text: "我感覺有些失望（也許是：跟我預測的不太一樣、沒有得到分數）。", key: "Disappointed" }
+    ];
+
+    // 賭博渴求量表（3題，6點量表：非常不同意～非常同意）
+    const gamblingCravingItems = [
+        "如果現在再來一局，我大概會接受。",
+        "我現在渴望再來一局。",
+        "如果現在再來一局，我會想得更清楚。"
     ];
 
     const topics = [
@@ -404,16 +456,24 @@
             anthroItems.map((itemText, idx) => createLikertHTML(`${idx + 1}. ${itemText}`, `pre_anthro_${idx + 1}`)).join('');
 
         // 與AI聊天機器人互動後的感受 (感知擬人化 - 後測)
+        // Human組的對手不是AI聊天機器人，這組題目顯示但灰化、不可填答（見section-disabled樣式）
         document.getElementById("post-anthro-questions").innerHTML =
             anthroItems.map((itemText, idx) => createLikertHTML(`${idx + 1}. ${itemText}`, `post_anthro_${idx + 1}`)).join('');
+        if (expData.opponentGroup === "Human") {
+            document.querySelectorAll('#post-anthro-questions input[type="radio"]').forEach(el => el.disabled = true);
+        }
 
         // 賽局理解度題組
         document.getElementById("game-know-container").innerHTML =
             createLikertHTML("2. 請問您是否了解賽局遊戲？", "game_knowledge", "完全不懂", "非常了解");
 
-        // 後測情緒評估
+        // 後測情緒評估（改回標準「非常不同意～非常同意」量尺）
         document.getElementById("emo-questions").innerHTML =
-            emoItems.map(item => createLikertHTML("", `emo_${item.key}`, item.left, item.right)).join('');
+            emoItems.map((item, idx) => createLikertHTML(`${idx + 1}. ${item.text}`, `emo_${item.key}`)).join('');
+
+        // 賭博渴求量表
+        document.getElementById("gambling-craving-questions").innerHTML =
+            gamblingCravingItems.map((itemText, idx) => createLikertHTML(`${idx + 1}. ${itemText}`, `gambling_craving_${idx + 1}`)).join('');
     }
 
     function buildDemographicsCards() {
@@ -444,8 +504,9 @@
             <div class="demo-group"><label>5. 請問您的宗教信仰：</label><input type="text" id="demo-religion" placeholder="例如：無、佛教、基督教等"></div>
             <div class="demo-group"><label>6. 請問您的族群屬於：</label><input type="text" id="demo-ethnicity" value="華人"></div>
 
-            <h4 style="margin-top:25px;">與AI聊天機器人互動後，您的感覺為？</h4>
-            <div id="post-anthro-questions"></div>
+            <h4 style="margin-top:25px;">您對於這個AI聊天機器人的感覺為？</h4>
+            <div id="post-anthro-questions" class="${expData.opponentGroup === 'Human' ? 'section-disabled' : ''}"></div>
+            ${expData.opponentGroup === 'Human' ? '<p style="font-size:13px; color:#95a5a6; margin-top:-10px;">（您的對手為真實玩家，此部分不需填答）</p>' : ''}
 
             <div class="demo-group" style="margin-top:25px;">
                 <label>7. 請問您的Email（選填）：</label>
@@ -486,15 +547,8 @@
             expData.preAnthro[`Q${i}`] = val.value;
         }
 
-        // 只有 AI_Chat 組會先與AI進行中性話題互動
-        if (expData.opponentGroup === "AI_Chat") {
-            let selectedTopic = topics[Math.floor(Math.random() * topics.length)];
-            document.getElementById("chat-topic").innerText = selectedTopic;
-            expData.chatTopic = selectedTopic;
-            showStep("step-chat");
-        } else {
-            showStep("step-game-exp");
-        }
+        // 賽局經驗調查／等候大廳（合併步驟）之後才會依組別分流到聊天室或AI組說明
+        showStep("step-game-exp");
     }
 
     // ================= 聊天視窗（呼叫GAS代理，GAS再呼叫Gemini，金鑰不落地前端） =================
@@ -600,15 +654,16 @@
 
     function submitChat() {
         let text = document.getElementById("chat-response").value.trim();
-        if (text.length < 50) return alert(`請至少輸入 50 字的結論！ (目前 ${text.length} 字)`);
+        if (text.length < 30) return alert(`請至少輸入 30 字的感想！ (目前 ${text.length} 字)`);
 
         clearTimeout(idleNudgeTimer);
 
         expData.chatResponse = text;
         expData.chatLog = chatMessages.map(m => (m.role === "user" ? "受試者" : "AI") + "：" + m.content).join(" ｜ ");
         expData.chatTurns = chatMessages.filter(m => m.role === "user").length;
+        expData.aiName = document.getElementById("chat-ai-name").value.trim();
 
-        showStep("step-game-exp");
+        showAIInfoStep();
     }
 
     function submitGameExp() {
@@ -621,12 +676,40 @@
 
         expData.gamePlayed = played.value;
         expData.gameKnowledge = knowledge.value;
+        expData.nickname = document.getElementById("demo-nickname").value.trim() || "匿名玩家";
 
         // 若為Human組，提早在背景開始搜尋真人配對，讓受試者填答規則測驗/預測時同步進行，降低逾時機率
         if (expData.opponentGroup === "Human") {
             beginHumanMatching();
         }
 
+        // 只有 AI_Chat 組會先與AI進行中性話題互動；AI_NoChat組直接看AI組說明；Human組直接進入遊戲
+        if (expData.opponentGroup === "AI_Chat") {
+            let selectedTopic = topics[Math.floor(Math.random() * topics.length)];
+            document.getElementById("chat-topic").innerText = selectedTopic;
+            expData.chatTopic = selectedTopic;
+            showStep("step-chat");
+        } else if (expData.opponentGroup === "AI_NoChat") {
+            showAIInfoStep();
+        } else {
+            initGameStage();
+        }
+    }
+
+    // ================= AI組專屬說明步驟（有互動/無互動皆適用） =================
+    let aiInfoAdvanced = false;   // 防止「使用者按按鈕」與「10秒自動跳轉」重複觸發
+    let aiInfoTimer = null;
+
+    function showAIInfoStep() {
+        aiInfoAdvanced = false;
+        showStep("step-ai-info");
+        aiInfoTimer = setTimeout(() => proceedFromAIInfo(), 10000); // 10秒無操作自動進入下一步
+    }
+
+    function proceedFromAIInfo() {
+        if (aiInfoAdvanced) return;
+        aiInfoAdvanced = true;
+        clearTimeout(aiInfoTimer);
         initGameStage();
     }
 
@@ -679,26 +762,29 @@
         let snap = await fbDb.ref(`queue/${otherKey}`).limitToFirst(1).once('value');
         if (snap.exists()) {
             let partnerId = Object.keys(snap.val())[0];
+            let partnerNickname = (snap.val()[partnerId] && snap.val()[partnerId].nickname) || "匿名玩家";
             let claim = await fbDb.ref(`queue/${otherKey}/${partnerId}`).transaction(cur => cur === null ? undefined : null);
             if (claim.committed && claim.snapshot.val() === null) {
                 let matchId = "M_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
                 let p1 = myRole === "Player1" ? expData.subjectId : partnerId;
                 let p2 = myRole === "Player1" ? partnerId : expData.subjectId;
-                await fbDb.ref(`matches/${matchId}`).set({ p1, p2, p1Choice: null, p2Choice: null });
-                await fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId });
-                matchState = { status: "matched", matchId, myRole };
+                let p1Nickname = myRole === "Player1" ? expData.nickname : partnerNickname;
+                let p2Nickname = myRole === "Player1" ? partnerNickname : expData.nickname;
+                await fbDb.ref(`matches/${matchId}`).set({ p1, p2, p1Choice: null, p2Choice: null, p1Nickname, p2Nickname });
+                await fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId, partnerNickname: expData.nickname });
+                matchState = { status: "matched", matchId, myRole, partnerNickname };
                 expData.matchType = "Human";
                 return;
             }
         }
 
-        // 2) 沒搶到，自己排隊等待被配對
-        await fbDb.ref(`queue/${myKey}/${expData.subjectId}`).set({ ts: Date.now() });
+        // 2) 沒搶到，自己排隊等待被配對（連同暱稱一起寫入，方便對方顯示）
+        await fbDb.ref(`queue/${myKey}/${expData.subjectId}`).set({ ts: Date.now(), nickname: expData.nickname });
         let result = await waitForPath(`matchAssignment/${expData.subjectId}`, v => v, MATCH_WAIT_TIMEOUT_MS);
         fbDb.ref(`queue/${myKey}/${expData.subjectId}`).remove();
 
         if (!result.timedOut) {
-            matchState = { status: "matched", matchId: result.value.matchId, myRole };
+            matchState = { status: "matched", matchId: result.value.matchId, myRole, partnerNickname: result.value.partnerNickname || "匿名玩家" };
             expData.matchType = "Human";
         } else {
             matchState.status = "fallback";
@@ -710,23 +796,24 @@
         let snap = await fbDb.ref(`queue/PD`).limitToFirst(1).once('value');
         if (snap.exists()) {
             let partnerId = Object.keys(snap.val())[0];
+            let partnerNickname = (snap.val()[partnerId] && snap.val()[partnerId].nickname) || "匿名玩家";
             let claim = await fbDb.ref(`queue/PD/${partnerId}`).transaction(cur => cur === null ? undefined : null);
             if (claim.committed && claim.snapshot.val() === null) {
                 let matchId = "M_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-                await fbDb.ref(`matches/${matchId}`).set({ a: expData.subjectId, b: partnerId, choiceA: null, choiceB: null });
-                await fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId });
-                matchState = { status: "matched", matchId, myRole: "a" };
+                await fbDb.ref(`matches/${matchId}`).set({ a: expData.subjectId, b: partnerId, choiceA: null, choiceB: null, aNickname: expData.nickname, bNickname: partnerNickname });
+                await fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId, partnerNickname: expData.nickname });
+                matchState = { status: "matched", matchId, myRole: "a", partnerNickname };
                 expData.matchType = "Human";
                 return;
             }
         }
 
-        await fbDb.ref(`queue/PD/${expData.subjectId}`).set({ ts: Date.now() });
+        await fbDb.ref(`queue/PD/${expData.subjectId}`).set({ ts: Date.now(), nickname: expData.nickname });
         let result = await waitForPath(`matchAssignment/${expData.subjectId}`, v => v, MATCH_WAIT_TIMEOUT_MS);
         fbDb.ref(`queue/PD/${expData.subjectId}`).remove();
 
         if (!result.timedOut) {
-            matchState = { status: "matched", matchId: result.value.matchId, myRole: "b" };
+            matchState = { status: "matched", matchId: result.value.matchId, myRole: "b", partnerNickname: result.value.partnerNickname || "匿名玩家" };
             expData.matchType = "Human";
         } else {
             matchState.status = "fallback";
@@ -741,7 +828,7 @@
 
         showStep("step-waiting");
         document.getElementById("waiting-title").innerText = "正在配對真實玩家中...";
-        document.getElementById("waiting-desc").innerText = "請稍候，最長等候 20 秒，逾時將自動由系統模擬對手接手。";
+        document.getElementById("waiting-desc").innerText = "請稍候，最長等候 30 秒，逾時將自動由系統模擬對手接手。";
         document.getElementById("pbar-box").style.display = "none";
         document.getElementById("waiting-countdown").style.display = "none";
 
@@ -880,10 +967,16 @@
 
         // 載入資訊
         let roleText = gameType === "Trust" ? (expData.trustRole === "Player1" ? "玩家 1" : "玩家 2") : "雙方同時決策";
-        document.getElementById("g-role-display").innerHTML = `<span class="role-badge">${roleText}</span>`;
+        let roleHint = "";
+        if (gameType === "Trust") {
+            roleHint = expData.trustRole === "Player1" ? "（玩家2要等您先做決策）" : "（您需要等玩家1先做出決策）";
+        }
+        document.getElementById("g-role-display").innerHTML =
+            `<span class="role-badge">${roleText}</span>` + (roleHint ? ` <span style="font-size:13px; color:#7f8c8d;">${roleHint}</span>` : "");
 
         let isAI = expData.opponentGroup !== "Human";
-        document.getElementById("g-opponent-name").innerText = isAI ? "AI 聊天機器人" : "真實人類玩家";
+        let opponentDisplayName = isAI ? (expData.aiName || "AI 聊天機器人") : (matchState.partnerNickname || "真實人類玩家");
+        document.getElementById("g-opponent-name").innerText = opponentDisplayName;
         document.getElementById("g-opponent-hint").innerText = isAI ?
             "AI聊天機器人被訓練後能在接下來的遊戲中做出與人類類似的決定。譬如：它會知道你跟它在遊戲中做的決定各自能獲得的分數，並了解其決策所產生的結果也需要仰賴你的選擇" : "您的對手為另一位真實配對之人類玩家。";
 
@@ -1109,6 +1202,18 @@
             if (!el) return alert("請完整填寫情緒感受問卷！");
             expData["emo" + item.key] = el.value;
         }
+
+        let rechoice = document.querySelector('input[name="post_rechoice"]:checked');
+        if (!rechoice) return alert("請回答「如果對同樣的對手再來一局，你的選擇會是？」！");
+        expData.reChoice = rechoice.value;
+
+        expData.gamblingCraving = {};
+        for (let i = 1; i <= gamblingCravingItems.length; i++) {
+            let val = document.querySelector(`input[name="gambling_craving_${i}"]:checked`);
+            if (!val) return alert(`請完成賭博渴求量表第 ${i} 題！`);
+            expData.gamblingCraving[`Q${i}`] = val.value;
+        }
+
         showStep("step-demographics");
     }
 
@@ -1130,12 +1235,15 @@
     }
 
     async function submitAllData() {
-        // 驗證：與AI聊天機器人互動後的感受（感知擬人化 - 後測）
-        expData.postAnthro = {};
-        for (let i = 1; i <= anthroItems.length; i++) {
-            let val = document.querySelector(`input[name="post_anthro_${i}"]:checked`);
-            if (!val) return alert(`請完成「與AI聊天機器人互動後，您的感覺為？」第 ${i} 題！`);
-            expData.postAnthro[`Q${i}`] = val.value;
+        // 驗證：您對於這個AI聊天機器人的感覺為？（感知擬人化 - 後測）
+        // Human組對手不是AI，這組題目被灰化、不需要也無法填答，跳過驗證
+        if (expData.opponentGroup !== "Human") {
+            expData.postAnthro = {};
+            for (let i = 1; i <= anthroItems.length; i++) {
+                let val = document.querySelector(`input[name="post_anthro_${i}"]:checked`);
+                if (!val) return alert(`請完成「您對於這個AI聊天機器人的感覺為？」第 ${i} 題！`);
+                expData.postAnthro[`Q${i}`] = val.value;
+            }
         }
 
         let age = document.getElementById("demo-age").value;
