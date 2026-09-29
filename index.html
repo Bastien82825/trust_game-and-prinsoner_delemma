@@ -39,14 +39,16 @@
 
         .likert-card { background: #ffffff; border: 1px solid #dadce0; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .likert-title { font-size: 16px; font-weight: bold; color: #202124; margin-bottom: 15px; }
-        .likert-scale { display: grid; grid-template-columns: 100px repeat(6, 1fr) 100px; align-items: center; text-align: center; gap: 5px; }
+        /* Likert量表：改用「標籤列（左右兩端）＋選項列」上下兩行的簡單flex排版，
+           不論螢幕寬度都不會有欄位對不齊或跑版的問題，不需要再依賴grid或flex-wrap排版技巧。 */
+        .likert-scale { display: flex; flex-direction: column; gap: 8px; }
         .likert-scale-flex { display: flex; flex-direction: column; gap: 12px; }
         .likert-scale-flex label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; color: #3c4043; }
+        .likert-labels-row { display: flex; justify-content: space-between; gap: 8px; }
         .likert-label { font-size: 13px; color: #5f6368; }
-        .likert-label.left { text-align: right; padding-right: 10px; }
-        .likert-label.right { text-align: left; padding-left: 10px; }
+        .likert-options-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; }
         .likert-num { font-size: 14px; color: #3c4043; margin-bottom: 8px; }
-        .likert-radio-col { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .likert-radio-col { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1 1 0; min-width: 0; }
         .likert-radio-col input[type="radio"], .likert-scale-flex input[type="radio"] { width: 22px; height: 22px; cursor: pointer; margin: 0; }
 
         .section-disabled { opacity: 0.45; pointer-events: none; }
@@ -74,25 +76,8 @@
             .container { padding: 16px; margin: 8px auto; border-radius: 8px; }
             h2 { font-size: 20px; }
             h3 { font-size: 17px; }
-            /* 手機版改用flexbox排版，避免grid在小螢幕下欄位跑掉、數字與圈圈對不齊的問題 */
-            .likert-scale {
-                display: flex;
-                flex-wrap: wrap;
-                align-items: center;
-            }
-            .likert-label.left, .likert-label.right {
-                flex: 1 1 100%;
-                padding: 4px 0;
-                font-size: 12px;
-                order: 0;
-            }
-            .likert-label.left { text-align: left; }
-            .likert-label.right { text-align: right; order: 2; }
-            .likert-radio-col {
-                flex: 1 1 0;
-                min-width: 0;
-                order: 1;
-            }
+            /* 手機版字體縮小一點即可，標籤列/選項列的排版本身已是簡單flex，不需再另外處理 */
+            .likert-label { font-size: 12px; }
             .likert-num { font-size: 12px; }
             .demo-group-inline { flex-direction: column; align-items: flex-start; gap: 10px; }
             button { width: 100%; font-size: 16px; }
@@ -425,14 +410,18 @@
             <div class="likert-card">
                 ${title ? `<div class="likert-title">${title}</div>` : ''}
                 <div class="likert-scale">
-                    <div class="likert-label left">${leftText}</div>
-                    ${[1,2,3,4,5,6].map(i => `
-                        <div class="likert-radio-col">
-                            <span class="likert-num">${i}</span>
-                            <input type="radio" name="${name}" value="${i}">
-                        </div>
-                    `).join('')}
-                    <div class="likert-label right">${rightText}</div>
+                    <div class="likert-labels-row">
+                        <span class="likert-label left">${leftText}</span>
+                        <span class="likert-label right">${rightText}</span>
+                    </div>
+                    <div class="likert-options-row">
+                        ${[1,2,3,4,5,6].map(i => `
+                            <div class="likert-radio-col">
+                                <span class="likert-num">${i}</span>
+                                <input type="radio" name="${name}" value="${i}">
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             </div>`;
     }
