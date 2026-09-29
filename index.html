@@ -762,93 +762,149 @@
         console.log("[配對] 配對流程結束，最終狀態：", JSON.stringify(matchState), "matchType=" + expData.matchType);
     }
 
+    // 原子性地嘗試從佇列(queuePath)裡搶走排隊中的第一個人（排除自己的subjectId，避免PD組共用同一個佇列時搶到自己）：
+    // 用「整個佇列節點」本身做transaction（而不是對單一子節點做transaction），
+    // 避免子節點沒有即時同步監聽時，transaction可能誤判成「目前沒人」而搶不到現成對手的問題。
+    async function claimFromQueue(queuePath, excludeId) {
+        let claimedId = null, claimedData = null;
+        await fbDb.ref(queuePath).transaction(queueObj => {
+            if (queueObj) {
+                let partnerId = Object.keys(queueObj).find(k => k !== excludeId);
+                if (partnerId) {
+                    claimedId = partnerId;
+                    claimedData = queueObj[partnerId];
+                    let rest = { ...queueObj };
+                    delete rest[partnerId];
+                    return Object.keys(rest).length ? rest : null;
+                }
+            }
+            claimedId = null;
+            claimedData = null;
+            return queueObj; // 沒有(其他)人排隊，維持原狀
+        });
+        return { claimedId, claimedData };
+    }
+
+    // 等待被配對期間，除了被動等待別人來搶自己，也每隔1.5秒主動再嘗試搶一次對向佇列，
+    // 避免「兩人幾乎同時進來、當下都還沒看到對方」導致誰也沒抓到誰、一路等到逾時的情況。
+    async function waitAndKeepTryingClaim(otherQueuePath, myAssignmentPath, timeoutMs) {
+        const pollIntervalMs = 1500;
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+            let assignSnap = await fbDb.ref(myAssignmentPath).once('value');
+            if (assignSnap.exists()) {
+                return { timedOut: false, matchedAsWaiter: true, value: assignSnap.val() };
+            }
+            let { claimedId, claimedData } = await claimFromQueue(otherQueuePath, expData.subjectId);
+            if (claimedId) {
+                return { timedOut: false, matchedAsWaiter: false, claimedId, claimedData };
+            }
+            await new Promise(r => setTimeout(r, pollIntervalMs));
+        }
+        // 最後再檢查一次，避免剛好在最後一輪輪詢空檔被配對到卻誤判逾時
+        let finalSnap = await fbDb.ref(myAssignmentPath).once('value');
+        if (finalSnap.exists()) {
+            return { timedOut: false, matchedAsWaiter: true, value: finalSnap.val() };
+        }
+        return { timedOut: true };
+    }
+
     async function matchTrust() {
         const myRole = expData.trustRole; // Player1 or Player2
         const myKey = myRole === "Player1" ? "TrustP1" : "TrustP2";
         const otherKey = myRole === "Player1" ? "TrustP2" : "TrustP1";
 
-        // 1) 先看對向佇列有沒有現成等待中的對手
-        let snap = await fbDb.ref(`queue/${otherKey}`).limitToFirst(1).once('value');
-        console.log(`[配對][Trust] 我是${myRole}，查詢對向佇列 queue/${otherKey}，是否有等待中的人：`, snap.exists(), snap.exists() ? snap.val() : "");
-        if (snap.exists()) {
-            let partnerId = Object.keys(snap.val())[0];
-            let partnerNickname = (snap.val()[partnerId] && snap.val()[partnerId].nickname) || "匿名玩家";
-            let claim = await fbDb.ref(`queue/${otherKey}/${partnerId}`).transaction(cur => cur === null ? undefined : null);
-            console.log(`[配對][Trust] 嘗試搶配對象 ${partnerId}，搶成功嗎(committed且原值非null)：`, claim.committed, claim.snapshot.val());
-            if (claim.committed && claim.snapshot.val() === null) {
-                let matchId = "M_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-                let p1 = myRole === "Player1" ? expData.subjectId : partnerId;
-                let p2 = myRole === "Player1" ? partnerId : expData.subjectId;
-                let p1Nickname = myRole === "Player1" ? expData.nickname : partnerNickname;
-                let p2Nickname = myRole === "Player1" ? partnerNickname : expData.nickname;
-                await fbDb.ref(`matches/${matchId}`).set({ p1, p2, p1Choice: null, p2Choice: null, p1Nickname, p2Nickname });
-                await fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId, partnerNickname: expData.nickname });
-                matchState = { status: "matched", matchId, myRole, partnerNickname };
-                expData.matchType = "Human";
-                console.log(`[配對][Trust] 配對成功(我是搶到對手的一方)！matchId=${matchId}，對手暱稱=${partnerNickname}`);
-                return;
-            }
+        function finalizeAsClaimer(partnerId, partnerInfo) {
+            let partnerNickname = (partnerInfo && partnerInfo.nickname) || "匿名玩家";
+            let matchId = "M_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+            let p1 = myRole === "Player1" ? expData.subjectId : partnerId;
+            let p2 = myRole === "Player1" ? partnerId : expData.subjectId;
+            let p1Nickname = myRole === "Player1" ? expData.nickname : partnerNickname;
+            let p2Nickname = myRole === "Player1" ? partnerNickname : expData.nickname;
+            return fbDb.ref(`matches/${matchId}`).set({ p1, p2, p1Choice: null, p2Choice: null, p1Nickname, p2Nickname })
+                .then(() => fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId, partnerNickname: expData.nickname }))
+                .then(() => {
+                    matchState = { status: "matched", matchId, myRole, partnerNickname };
+                    expData.matchType = "Human";
+                    console.log(`[配對][Trust] 配對成功(我是搶到對手的一方)！matchId=${matchId}，對手暱稱=${partnerNickname}`);
+                });
+        }
+
+        // 1) 原子性嘗試搶對向佇列裡現成等待中的對手
+        let { claimedId: partnerId, claimedData: partnerInfo } = await claimFromQueue(`queue/${otherKey}`, expData.subjectId);
+        console.log(`[配對][Trust] 我是${myRole}，嘗試原子性搶對向佇列 queue/${otherKey} 的現成對手，結果：`, partnerId || "沒搶到");
+
+        if (partnerId) {
+            await finalizeAsClaimer(partnerId, partnerInfo);
+            return;
         }
 
         // 2) 沒搶到，自己排隊等待被配對（連同暱稱一起寫入，方便對方顯示）
-        console.log(`[配對][Trust] 沒有搶到現成對手，開始排隊寫入 queue/${myKey}/${expData.subjectId}，最長等待${MATCH_WAIT_TIMEOUT_MS}ms`);
+        console.log(`[配對][Trust] 沒有搶到現成對手，開始排隊寫入 queue/${myKey}/${expData.subjectId}，最長等待${MATCH_WAIT_TIMEOUT_MS}ms，期間每1.5秒也會主動再嘗試搶對手`);
         let myQueueRef = fbDb.ref(`queue/${myKey}/${expData.subjectId}`);
         await myQueueRef.set({ ts: Date.now(), nickname: expData.nickname });
         // 若受試者中途關閉分頁／斷線，讓Firebase自動清掉這筆排隊資料，避免留下永久卡住的幽靈紀錄
         myQueueRef.onDisconnect().remove();
-        let result = await waitForPath(`matchAssignment/${expData.subjectId}`, v => v, MATCH_WAIT_TIMEOUT_MS);
+        let result = await waitAndKeepTryingClaim(`queue/${otherKey}`, `matchAssignment/${expData.subjectId}`, MATCH_WAIT_TIMEOUT_MS);
         myQueueRef.onDisconnect().cancel();
         myQueueRef.remove();
-        console.log(`[配對][Trust] 排隊等待結束，是否逾時：`, result.timedOut, result.timedOut ? "" : result.value);
+        console.log(`[配對][Trust] 排隊等待結束，是否逾時：`, result.timedOut);
 
-        if (!result.timedOut) {
+        if (result.timedOut) {
+            matchState.status = "fallback";
+            expData.matchType = "Simulated_Fallback";
+            console.log("[配對][Trust] 逾時30秒仍未配對到真人，改為模擬對手");
+        } else if (result.matchedAsWaiter) {
             matchState = { status: "matched", matchId: result.value.matchId, myRole, partnerNickname: result.value.partnerNickname || "匿名玩家" };
             expData.matchType = "Human";
             console.log(`[配對][Trust] 配對成功(我是排隊等到對手的一方)！matchId=${result.value.matchId}，對手暱稱=${matchState.partnerNickname}`);
         } else {
-            matchState.status = "fallback";
-            expData.matchType = "Simulated_Fallback";
-            console.log("[配對][Trust] 逾時30秒仍未配對到真人，改為模擬對手");
+            await finalizeAsClaimer(result.claimedId, result.claimedData);
         }
     }
 
     async function matchPD() {
-        let snap = await fbDb.ref(`queue/PD`).limitToFirst(1).once('value');
-        console.log("[配對][PD] 查詢佇列 queue/PD，是否有等待中的人：", snap.exists(), snap.exists() ? snap.val() : "");
-        if (snap.exists()) {
-            let partnerId = Object.keys(snap.val())[0];
-            let partnerNickname = (snap.val()[partnerId] && snap.val()[partnerId].nickname) || "匿名玩家";
-            let claim = await fbDb.ref(`queue/PD/${partnerId}`).transaction(cur => cur === null ? undefined : null);
-            console.log(`[配對][PD] 嘗試搶配對象 ${partnerId}，搶成功嗎(committed且原值非null)：`, claim.committed, claim.snapshot.val());
-            if (claim.committed && claim.snapshot.val() === null) {
-                let matchId = "M_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-                await fbDb.ref(`matches/${matchId}`).set({ a: expData.subjectId, b: partnerId, choiceA: null, choiceB: null, aNickname: expData.nickname, bNickname: partnerNickname });
-                await fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId, partnerNickname: expData.nickname });
-                matchState = { status: "matched", matchId, myRole: "a", partnerNickname };
-                expData.matchType = "Human";
-                console.log(`[配對][PD] 配對成功(我是搶到對手的一方)！matchId=${matchId}，對手暱稱=${partnerNickname}`);
-                return;
-            }
+        function finalizeAsClaimer(partnerId, partnerInfo) {
+            let partnerNickname = (partnerInfo && partnerInfo.nickname) || "匿名玩家";
+            let matchId = "M_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+            return fbDb.ref(`matches/${matchId}`).set({ a: expData.subjectId, b: partnerId, choiceA: null, choiceB: null, aNickname: expData.nickname, bNickname: partnerNickname })
+                .then(() => fbDb.ref(`matchAssignment/${partnerId}`).set({ matchId, partnerNickname: expData.nickname }))
+                .then(() => {
+                    matchState = { status: "matched", matchId, myRole: "a", partnerNickname };
+                    expData.matchType = "Human";
+                    console.log(`[配對][PD] 配對成功(我是搶到對手的一方)！matchId=${matchId}，對手暱稱=${partnerNickname}`);
+                });
         }
 
-        console.log(`[配對][PD] 沒有搶到現成對手，開始排隊寫入 queue/PD/${expData.subjectId}，最長等待${MATCH_WAIT_TIMEOUT_MS}ms`);
+        // 1) 原子性嘗試搶佇列裡現成等待中的對手
+        let { claimedId: partnerId, claimedData: partnerInfo } = await claimFromQueue("queue/PD", expData.subjectId);
+        console.log("[配對][PD] 嘗試原子性搶佇列 queue/PD 的現成對手，結果：", partnerId || "沒搶到");
+
+        if (partnerId) {
+            await finalizeAsClaimer(partnerId, partnerInfo);
+            return;
+        }
+
+        console.log(`[配對][PD] 沒有搶到現成對手，開始排隊寫入 queue/PD/${expData.subjectId}，最長等待${MATCH_WAIT_TIMEOUT_MS}ms，期間每1.5秒也會主動再嘗試搶對手`);
         let myQueueRef = fbDb.ref(`queue/PD/${expData.subjectId}`);
         await myQueueRef.set({ ts: Date.now(), nickname: expData.nickname });
         // 若受試者中途關閉分頁／斷線，讓Firebase自動清掉這筆排隊資料，避免留下永久卡住的幽靈紀錄
         myQueueRef.onDisconnect().remove();
-        let result = await waitForPath(`matchAssignment/${expData.subjectId}`, v => v, MATCH_WAIT_TIMEOUT_MS);
+        let result = await waitAndKeepTryingClaim("queue/PD", `matchAssignment/${expData.subjectId}`, MATCH_WAIT_TIMEOUT_MS);
         myQueueRef.onDisconnect().cancel();
         myQueueRef.remove();
-        console.log(`[配對][PD] 排隊等待結束，是否逾時：`, result.timedOut, result.timedOut ? "" : result.value);
+        console.log(`[配對][PD] 排隊等待結束，是否逾時：`, result.timedOut);
 
-        if (!result.timedOut) {
+        if (result.timedOut) {
+            matchState.status = "fallback";
+            expData.matchType = "Simulated_Fallback";
+            console.log("[配對][PD] 逾時30秒仍未配對到真人，改為模擬對手");
+        } else if (result.matchedAsWaiter) {
             matchState = { status: "matched", matchId: result.value.matchId, myRole: "b", partnerNickname: result.value.partnerNickname || "匿名玩家" };
             expData.matchType = "Human";
             console.log(`[配對][PD] 配對成功(我是排隊等到對手的一方)！matchId=${result.value.matchId}，對手暱稱=${matchState.partnerNickname}`);
         } else {
-            matchState.status = "fallback";
-            expData.matchType = "Simulated_Fallback";
-            console.log("[配對][PD] 逾時30秒仍未配對到真人，改為模擬對手");
+            await finalizeAsClaimer(result.claimedId, result.claimedData);
         }
     }
 
