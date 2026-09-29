@@ -82,12 +82,12 @@
             }
             .likert-label.left, .likert-label.right {
                 flex: 1 1 100%;
-                text-align: center;
                 padding: 4px 0;
                 font-size: 12px;
                 order: 0;
             }
-            .likert-label.right { order: 2; }
+            .likert-label.left { text-align: left; }
+            .likert-label.right { text-align: right; order: 2; }
             .likert-radio-col {
                 flex: 1 1 0;
                 min-width: 0;
@@ -1062,7 +1062,9 @@
         document.getElementById("g-role-display").innerHTML =
             `<span class="role-badge">${roleText}</span>` + (roleHint ? ` <span style="font-size:13px; color:#7f8c8d;">${roleHint}</span>` : "");
 
-        let isAI = expData.opponentGroup !== "Human";
+        // 若原本是Human組但配對逾時、改由系統模擬對手接手(Simulated_Fallback)，畫面也一併顯示為AI聊天機器人，
+        // 避免受試者看到「真實人類玩家」字樣卻其實對手是模擬出來的。
+        let isAI = expData.opponentGroup !== "Human" || expData.matchType === "Simulated_Fallback";
         let opponentDisplayName = isAI ? (expData.aiName || "AI 聊天機器人") : (matchState.partnerNickname || "真實人類玩家");
         document.getElementById("g-opponent-name").innerText = opponentDisplayName;
         document.getElementById("g-opponent-hint").innerText = isAI ?
