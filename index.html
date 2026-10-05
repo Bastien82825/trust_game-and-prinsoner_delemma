@@ -57,6 +57,11 @@
         .info-item { margin-bottom: 12px; font-size: 16px; line-height: 1.5; }
 
         .chat-window { height: 320px; overflow-y: auto; border: 1px solid #dadce0; border-radius: 8px; padding: 12px; margin: 10px 0; background: #fafafa; -webkit-overflow-scrolling: touch; }
+        .topic-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .topic-buttons button { margin-top: 0; background: #fff; color: #1a73e8; border: 1px solid #1a73e8; border-radius: 20px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
+        .topic-buttons button:hover:not(:disabled) { background: #e8f0fe; }
+        .topic-buttons button.selected { background: #1a73e8; color: #fff; }
+        .topic-buttons button:disabled:not(.selected) { opacity: 0.4; cursor: not-allowed; }
         .chat-input-row { display: flex; gap: 10px; }
         .chat-input-row input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
         .chat-input-row button { margin-top: 0; flex-shrink: 0; }
@@ -117,14 +122,14 @@
     <!-- 中性話題互動 (僅 AI_Chat 組) -->
     <div id="step-chat" class="step">
         <h3>話題討論任務</h3>
-        <p>請先試著與 AI 聊天機器人針對以下議題進行討論並寫下你的感想：</p>
-        <p><strong id="chat-topic"></strong></p>
+        <p>請從下面的議題中選一個你有興趣聊的，點選後就會開始與 AI 聊天機器人討論（選定後無法更換），討論後請寫下你的感想：</p>
+        <div id="topic-buttons" class="topic-buttons"></div>
 
         <div id="chat-window" class="chat-window"></div>
         <div class="chat-input-row">
-            <input type="text" id="chat-input" placeholder="請輸入訊息，按 Enter 或點擊送出"
+            <input type="text" id="chat-input" placeholder="請先選擇上方議題" disabled
                    onkeydown="if(event.key==='Enter'){event.preventDefault(); sendChatMessage();}">
-            <button id="chat-send-btn" onclick="sendChatMessage()">送出</button>
+            <button id="chat-send-btn" onclick="sendChatMessage()" disabled>送出</button>
         </div>
 
         <h4 style="margin-top:25px;">討論結束後，請說說您的感想（至少 30 字）：</h4>
@@ -342,10 +347,13 @@
     ];
 
     const topics = [
-        "咖哩應該要先拌還是不拌？請說明原因。",
-        "早起比較健康還是夜貓族也沒有不好？請說明原因。",
-        "約會遲到 5 分鐘算是正常還是不能接受？請說明原因。"
+        { label: "買不買車", text: "在大眾運輸方便的地方生活，還有必要買車嗎？停車位會是影響買車的關鍵嗎？養車花錢但增加居住選擇划算嗎？" },
+        { label: "手機系統", text: "iPhone和安卓，你覺得哪一種手機比較好用？你曾經換過手機之後又換回來嗎？系統不同很困擾嗎？有人覺得用iPhone就是虛榮，你覺得呢？" },
+        { label: "婚禮打扮", text: "婚禮上，伴娘或賓客要不要避免打扮得太搶眼？如果你是新娘是否會在意呢？" },
+        { label: "咖哩之亂", text: "咖哩飯應該要先拌還是不拌？有人認為拌開跟芥末先喇開一樣是邪魔歪道，有人認為不拌開就是在吃白飯，你覺得呢？還是你有自己的獨創吃法呢？" },
+        { label: "約會遲到", text: "男女生交往，約會不遲到算是基本嗎？根據Dcard上的一個投票，多數人能接受遲到30分鐘內，遲到多久會讓你開始生氣？對方先傳訊息說會晚到會有差嗎？" }
     ];
+    let topicChosen = false;
 
     // ================= 9組隨機分派：3種對手條件 × 3種賽局/角色條件 =================
     // 注意：Human組因真人配對困難，權重加倍（陣列中放兩次"Human"），
@@ -645,14 +653,17 @@
     }
 
     function submitChat() {
+        if (!topicChosen) return alert("請先選擇一個議題並與 AI 討論！");
         let text = document.getElementById("chat-response").value.trim();
         if (text.length < 30) return alert(`請至少輸入 30 字的感想！ (目前 ${text.length} 字)`);
 
         clearTimeout(idleNudgeTimer);
 
         expData.chatResponse = text;
-        expData.chatLog = chatMessages.map(m => (m.role === "user" ? "受試者" : "AI") + "：" + m.content).join(" ｜ ");
-        expData.chatTurns = chatMessages.filter(m => m.role === "user").length;
+        // 第一則 user 訊息是按鈕帶入的題目（已另存於 chatTopic），不計入對話紀錄與輪數
+        let realMsgs = chatMessages.slice(1);
+        expData.chatLog = realMsgs.map(m => (m.role === "user" ? "受試者" : "AI") + "：" + m.content).join(" ｜ ");
+        expData.chatTurns = realMsgs.filter(m => m.role === "user").length;
         expData.aiName = document.getElementById("chat-ai-name").value.trim();
 
         initGameStage();
@@ -683,6 +694,47 @@
         }
     }
 
+    // ================= 議題按鈕（受試者自選，每人按鈕順序隨機，選定後鎖住） =================
+    function renderTopicButtons() {
+        if (topicChosen) return;
+        let box = document.getElementById("topic-buttons");
+        box.innerHTML = "";
+        let order = topics.map((_, i) => i);
+        for (let i = order.length - 1; i > 0; i--) {
+            let j = Math.floor(Math.random() * (i + 1));
+            [order[i], order[j]] = [order[j], order[i]];
+        }
+        order.forEach(idx => {
+            let btn = document.createElement("button");
+            btn.type = "button";
+            btn.innerText = topics[idx].label;
+            btn.onclick = () => chooseTopic(idx, btn);
+            box.appendChild(btn);
+        });
+    }
+
+    function chooseTopic(idx, btn) {
+        if (topicChosen) return;
+        topicChosen = true;
+        document.querySelectorAll("#topic-buttons button").forEach(b => { b.disabled = true; });
+        btn.classList.add("selected");
+
+        expData.chatTopic = topics[idx].text;
+
+        let input = document.getElementById("chat-input");
+        input.disabled = false;
+        input.placeholder = "請輸入訊息，按 Enter 或點擊送出";
+        document.getElementById("chat-send-btn").disabled = false;
+
+        // 題目本身作為第一則訊息送出（不計入互動輪數），AI會先針對題目開場回應
+        let text = topics[idx].text;
+        appendChatBubble("user", text);
+        chatMessages.push({ role: "user", content: text });
+        lastUserMsgTime = Date.now();
+        processChatQueue();
+        input.focus();
+    }
+
     // ================= AI組專屬說明步驟（有互動/無互動皆適用） =================
     let aiInfoAdvanced = false;   // 防止「使用者按按鈕」與「10秒自動跳轉」重複觸發
     let aiInfoTimer = null;
@@ -700,9 +752,7 @@
 
         // 只有 AI_Chat 組會在此說明步驟之後，接著進行中性話題互動；AI_NoChat組直接進入遊戲
         if (expData.opponentGroup === "AI_Chat") {
-            let selectedTopic = topics[Math.floor(Math.random() * topics.length)];
-            document.getElementById("chat-topic").innerText = selectedTopic;
-            expData.chatTopic = selectedTopic;
+            renderTopicButtons();
             showStep("step-chat");
         } else {
             initGameStage();
