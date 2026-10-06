@@ -14,6 +14,10 @@
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 750px; margin: 20px auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h2, h3, h4 { color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; }
+        .container { position: relative; padding-bottom: 46px; }
+        .consent-text p { line-height: 1.8; font-size: 15px; margin: 10px 0; }
+        .consent-note { font-size: 13px; color: #666; }
+        .version-tag { position: absolute; right: 16px; bottom: 12px; font-size: 12px; color: #888; text-align: right; line-height: 1.4; pointer-events: none; }
         .step { display: none; }
         .step.active { display: block; }
         button { background-color: #3498db; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; margin-top: 15px; min-height: 44px; }
@@ -78,7 +82,7 @@
         /* ===== 手機適配 ===== */
         @media (max-width: 600px) {
             body { padding: 10px; }
-            .container { padding: 16px; margin: 8px auto; border-radius: 8px; }
+            .container { padding: 16px 16px 44px; margin: 8px auto; border-radius: 8px; }
             h2 { font-size: 20px; }
             h3 { font-size: 17px; }
             /* 手機版字體縮小一點即可，標籤列/選項列的排版本身已是簡單flex，不需再另外處理 */
@@ -94,13 +98,24 @@
 </head>
 <body>
 <div class="container">
+    <div class="version-tag">版本：第V1版　日期：2026年10月06日</div>
     <!-- 知情同意書 -->
     <div id="step-consent" class="step active">
-        <h2>知情同意書</h2>
-        <p>歡迎參加本心理學研究實驗。本研究旨在探討人類與AI或其他人際互動對決策之影響。</p>
-        <p>(待完成)</p>
-        <p>參與報酬：完成實驗可獲得 <strong>30 點 Line Points</strong>，並依據遊戲決策結果最高可額外獲得 <strong>100 點 Line Points</strong>。</p>
-        <button onclick="showStep('step-pre-anthro')">我同意並開始實驗</button>
+        <h2>問卷知情說明頁</h2>
+        <div class="consent-text">
+        <p>親愛的先生/小姐，您好：</p>
+        <p>這是一份國科會補助(115WFA0710340)由國立中央大學企業管理學系執行的計畫，計畫目的是透過實驗及問卷探討關於人們對AI聊天機器人與人類的態度差異研究，調查對象主要為年滿18歲之學生但不限於學生。實驗部分邀請您面對人類或AI聊天機器人為對手進行經典經濟賽局遊戲，問卷部分則涉及對AI聊天機器人之使用經驗、態度傾向等，您所填寫的內容無關對錯，請您放心填答。</p>
+        <p>完成整個實驗約需5-10分鐘，主要視乎您對賽局遊戲了解程度而定，感謝您撥冗參與。</p>
+        <p>本問卷採不記名且無法辨識個人的方式作答，惟實驗中有需要您設定暱稱與選填Email有可能間接與個人連結，因此資料蒐集完成後會刪除相關資料重新排序進行二次編碼後才交由研究人員進行資料分析，所蒐集的資訊保存至116年9月計畫完成後即刪除。其他人員不會接觸到研究相關資料，研究團隊會遵守學術倫理，維護您的隱私及善盡保密責任，盡量減少可能的風險。此研究未來發表採整體分析，您不會被辨識出，將發表於學術期刊，亦無衍生的商業利益。整體計畫智慧財產權依法歸屬於國立中央大學企業管理學系。</p>
+        <p>全程研究採線上問卷平台作答，您可以自由決定是否參與及填寫，亦可中途不填寫，無需感到壓力。本實驗完成後，您將收到30點LinePoints作為您撥出時間參與的補償，根據經典經濟賽局遊戲結果，您可能額外獲得最多50點LinePoints。問卷最後會詢問您Email作為LinePoints發放的依據，您可以選擇是否填寫。若日後希望退出並刪除所有資料亦僅能透過Email進行辨識，若您決定不填寫Email，惟本團隊無法辨識您當時所填答的問卷內容進行刪除，敬請見諒！</p>
+        <p>若您想詢問本問卷內容，或有興趣得知研究結果，此研究預計將於116年9月完成，您可以透過Email詢問，也歡迎您依照下述聯絡方式索取研究結果摘要。本研究由聯新國際醫院人體試驗委員會倫理審查通過，若想諮詢參與研究的權益或提出申訴，請聯絡聯新國際醫院受試者保護中心戴小姐，電話:03-494-1234＃2047，email：daiyj@landseed.com.tw。</p>
+        <p>敬祝　身體健康、萬事如意</p>
+        <p>計畫主持人 李憶萱 老師<br>國立中央大學企業管理學系<br>聯絡電話: 0939-008871 /Email:yihsuanlee@mgt.ncu.edu.tw</p>
+        <p>研究助理 張温穎 博士<br>國立中央大學企業管理學系<br>聯絡電話: 0930-805725 /Email:willy82825@gmail.com</p>
+        <p class="consent-note">※如同意填寫，請您自行列印或儲存本頁內容，並請點選下方「同意」按鈕作答<br>※此網站可能紀錄您的IP位址及電子信箱等個資，但僅供研究團隊參考且善盡保密之責</p>
+        <p class="consent-note">說明頁版本：第V1版<br>日期：西元2026年10月06日<br>參考來源：國立成功大學人類研究倫理審查委員會2020.09.21修正範例版</p>
+        </div>
+        <button onclick="showStep('step-pre-anthro')">同意</button>
     </div>
 
     <!-- 前測 -->
